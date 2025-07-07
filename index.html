@@ -171,22 +171,15 @@ function showWorlds(uid) {
     } else {
       worldList.innerHTML = '';
       Object.values(data).forEach(world => {
-        let modeTag = {
-          normal: 'normaltag.png',
-          triche: 'trichetag.png',
-          explorateur: 'explorateurtag.png'
-        }[world.mode] || 'normaltag.png';
-
-        const uniqueTag = world.unique ? `<img src="uniquetag.png" />` : '';
-
+        const modeBox = `<div style="display:inline-block; background:#444; color:white; padding:4px 8px; margin-right:5px;">${world.mode}</div>`;
+        const uniqueBox = world.unique ? `<div style="display:inline-block; background:gold; color:black; padding:4px 8px;">Unique</div>` : '';
         worldList.innerHTML += `
           <div class="world-item">
             <img class="world-thumb" src="https://i.imgur.com/ZVjToUu.png" />
             <div class="world-info">
               <div class="world-name">${world.name}</div>
               <div class="world-type">
-                <img src="${modeTag}" />
-                ${uniqueTag}
+                ${modeBox}${uniqueBox}
               </div>
             </div>
             <div class="world-meta">
@@ -199,6 +192,7 @@ function showWorlds(uid) {
     }
   });
 }
+
 
 function searchUsers(query) {
   const results = document.getElementById('searchResults');
