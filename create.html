@@ -5,101 +5,126 @@
   <title>Créer un monde</title>
   <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
   <style>
-    * { font-family: 'Press Start 2P', cursive; box-sizing: border-box; }
-    body {
-      background: url('background.png') no-repeat center center fixed;
-      background-size: cover;
-      color: white;
-      padding: 20px;
+    * {
+      font-family: 'Press Start 2P', cursive;
+      box-sizing: border-box;
     }
-    .container {
-      background: rgba(0,0,0,0.7);
-      padding: 20px;
+    body {
+      background: #1e1e1e;
+      color: white;
       display: flex;
+      flex-direction: row;
+      height: 100vh;
     }
     .sidebar {
-      width: 200px;
-      margin-right: 20px;
+      width: 250px;
+      background: #2a2a2a;
+      padding: 20px;
+    }
+    .sidebar h2 {
+      margin-bottom: 20px;
     }
     .sidebar button {
-      display: block;
-      width: 100%;
-      margin-bottom: 10px;
+      background: #555;
+      color: gray;
       padding: 10px;
-      background: #333;
-      color: white;
       border: none;
+      margin-bottom: 10px;
       cursor: not-allowed;
+      width: 100%;
     }
     .main {
       flex: 1;
-    }
-    .section {
-      margin-bottom: 20px;
-    }
-    .label {
-      margin-bottom: 5px;
+      padding: 20px;
     }
     input[type="text"] {
       width: 100%;
       padding: 10px;
+      margin-bottom: 20px;
     }
-    .option-group button {
+    .toggle-group {
+      display: flex;
+      margin-bottom: 20px;
+    }
+    .toggle {
+      flex: 1;
       padding: 10px;
-      margin-right: 10px;
-      background: #555;
-      color: white;
-      border: none;
+      text-align: center;
+      border: 1px solid #777;
+      cursor: pointer;
     }
-    .option-group button.selected {
+    .toggle.active {
       background: green;
     }
-    .footer-btn {
-      padding: 15px;
-      font-size: 14px;
+    .description {
+      font-size: 10px;
+      margin-bottom: 10px;
+    }
+    .toggle-btn {
+      width: 60px;
+      height: 30px;
+      background-color: #444;
+      border-radius: 15px;
+      position: relative;
+      cursor: pointer;
+      margin-bottom: 20px;
+    }
+    .toggle-circle {
+      width: 26px;
+      height: 26px;
+      background-color: white;
+      border-radius: 50%;
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      transition: 0.3s;
+    }
+    .toggle-btn.active {
+      background-color: green;
+    }
+    .toggle-btn.active .toggle-circle {
+      left: 32px;
+    }
+    .create-btn {
       background: green;
       color: white;
+      padding: 10px;
       border: none;
       cursor: pointer;
+      width: 100%;
     }
   </style>
 </head>
 <body>
-  <h1>CRÉER UN NOUVEAU MONDE</h1>
-  <div class="container">
-    <div class="sidebar">
-      <img src="https://i.imgur.com/ZVjToUu.png" style="width:100%; margin-bottom: 10px;">
-      <button id="createBtn" onclick="createWorld()">CRÉER</button>
-      <button disabled>Créer sur un serveur</button>
-      <button style="background: #222; cursor: default;">Général</button>
+  <div class="sidebar">
+    <h2>Général</h2>
+    <button disabled>Créer sur un serveur</button>
+  </div>
+  <div class="main">
+    <h1>CRÉER UN NOUVEAU MONDE</h1>
+    <input type="text" id="worldName" placeholder="Nom du monde" />
+
+    <h3>Mode de jeu</h3>
+    <div class="toggle-group" id="modeGroup">
+      <div class="toggle active" data-value="normal">Normal</div>
+      <div class="toggle" data-value="triche">Triche</div>
+      <div class="toggle" data-value="explorateur">Explorateur</div>
     </div>
 
-    <div class="main">
-      <div class="section">
-        <div class="label">Nom du monde</div>
-        <input type="text" id="worldName" placeholder="Mon monde">
-      </div>
-      <div class="section">
-        <div class="label">Mode de jeu</div>
-        <div class="option-group" id="modeGroup">
-          <button onclick="selectMode(this, 'normal')">Normal</button>
-          <button onclick="selectMode(this, 'triche')">Triche</button>
-          <button onclick="selectMode(this, 'explorateur')">Explorateur</button>
-        </div>
-      </div>
-      <div class="section">
-        <div class="label">Difficulté</div>
-        <div class="option-group" id="difficultyGroup">
-          <button onclick="selectDifficulty(this, 'Facile')">Facile</button>
-          <button onclick="selectDifficulty(this, 'Normale')">Normale</button>
-          <button onclick="selectDifficulty(this, 'Difficile')">Difficile</button>
-        </div>
-      </div>
-      <div class="section">
-        <div class="label">Unique</div>
-        <input type="checkbox" id="uniqueMode"> Le monde devient inaccessible après la défaite. Bonne chance à vous !
-      </div>
+    <h3>Difficulté</h3>
+    <div class="toggle-group" id="difficultyGroup">
+      <div class="toggle active" data-value="Facile">Facile</div>
+      <div class="toggle" data-value="Normale">Normale</div>
+      <div class="toggle" data-value="Difficile">Difficile</div>
     </div>
+
+    <h3>Unique</h3>
+    <div class="description">Le monde devient inaccessible après la défaite. Bonne chance à vous!</div>
+    <div class="toggle-btn" id="uniqueToggle">
+      <div class="toggle-circle"></div>
+    </div>
+
+    <button class="create-btn" onclick="createWorld()">CRÉER</button>
   </div>
 
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
@@ -120,47 +145,58 @@
     const db = firebase.database();
 
     let selectedMode = 'normal';
-    let selectedDifficulty = 'Normale';
+    let selectedDifficulty = 'Facile';
+    let unique = false;
 
-    function selectMode(btn, mode) {
-      document.querySelectorAll('#modeGroup button').forEach(b => b.classList.remove('selected'));
-      btn.classList.add('selected');
-      selectedMode = mode;
-    }
-    function selectDifficulty(btn, difficulty) {
-      document.querySelectorAll('#difficultyGroup button').forEach(b => b.classList.remove('selected'));
-      btn.classList.add('selected');
-      selectedDifficulty = difficulty;
-    }
+    document.querySelectorAll('#modeGroup .toggle').forEach(btn => {
+      btn.onclick = () => {
+        document.querySelectorAll('#modeGroup .toggle').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        selectedMode = btn.dataset.value;
+      };
+    });
+
+    document.querySelectorAll('#difficultyGroup .toggle').forEach(btn => {
+      btn.onclick = () => {
+        document.querySelectorAll('#difficultyGroup .toggle').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        selectedDifficulty = btn.dataset.value;
+      };
+    });
+
+    document.getElementById('uniqueToggle').onclick = () => {
+      const toggle = document.getElementById('uniqueToggle');
+      toggle.classList.toggle('active');
+      unique = toggle.classList.contains('active');
+    };
 
     function createWorld() {
-      const name = document.getElementById('worldName').value || 'Mon monde';
-      const unique = document.getElementById('uniqueMode').checked;
       const user = auth.currentUser;
-      if (!user) return;
+      if (!user) return alert("Non connecté");
 
-      const id = db.ref().child('worlds').push().key;
-      const creationDate = new Date().toLocaleDateString();
-      const size = Math.floor(Math.random() * 100 + 50) + ' Mo';
+      const name = document.getElementById('worldName').value.trim();
+      if (!name) return alert("Nom du monde requis");
 
-      const data = {
+      const createdAt = new Date().toLocaleDateString('fr-FR');
+      const size = Math.floor(Math.random() * 50 + 10) + ' Mo';
+
+      const worldData = {
         name,
         mode: selectedMode,
         difficulty: selectedDifficulty,
         unique,
-        createdAt: creationDate,
+        createdAt,
         size
       };
 
-      db.ref('worlds/' + user.uid + '/' + id).set(data).then(() => {
-        window.location.href = 'index.html';
-      });
+      db.ref('users/' + user.uid + '/worlds/' + name).set(worldData)
+        .then(() => {
+          location.href = 'index.html';
+        });
     }
 
     auth.onAuthStateChanged(user => {
-      if (!user) {
-        window.location.href = 'index.html';
-      }
+      if (!user) location.href = 'index.html';
     });
   </script>
 </body>
