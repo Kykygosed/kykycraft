@@ -158,6 +158,18 @@
 .friend-line.gray {
   background-color: #777;
 }
+.friend-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.crown {
+  height: 20px;
+  object-fit: contain;
+  margin-left: 10px;
+  padding-right: 5px;
+}
 
 
   </style>
@@ -285,16 +297,28 @@ function loadFriends(uid) {
   db.ref('friends/' + uid).on('value', snap => {
     const friendUids = snap.val();
     if (!friendUids) return;
+
     Object.keys(friendUids).forEach(fid => {
       db.ref('presence/' + fid).once('value', pSnap => {
         const isOnline = pSnap.val() === true;
+
         db.ref('users/' + fid).once('value', uSnap => {
           const user = uSnap.val();
           const username = user?.username || fid;
           const playing = isOnline ? (user?.playing || 'Écran d’accueil') : 'Hors ligne';
           const isKyky = username.toLowerCase() === "kykygosed";
-          const crown = isKyky ? ' <img src="crown.png" style="height: 16px; vertical-align: middle; margin-left: 5px;">' : '';
-          const html = `<div class="friend"><div>${username}${crown}<br><span class="status">${playing}</span></div></div>`;
+
+          const html = `
+            <div class="friend">
+              <div class="friend-info">
+                <div>
+                  ${username}<br>
+                  <span class="status">${playing}</span>
+                </div>
+                ${isKyky ? '<img class="crown" src="crown.png" />' : ''}
+              </div>
+            </div>
+          `;
 
           if (isOnline) online.innerHTML += html;
           else offline.innerHTML += html;
