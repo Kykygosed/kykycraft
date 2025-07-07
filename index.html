@@ -297,6 +297,7 @@ function loadFriends(uid) {
   const online = document.getElementById('friendsOnline');
   const offline = document.getElementById('friendsOffline');
 
+  // Écoute les changements dans la liste d'amis
   db.ref('friends/' + uid).on('value', snap => {
     const friendUids = snap.val();
     if (!friendUids) {
@@ -305,45 +306,48 @@ function loadFriends(uid) {
       return;
     }
 
-    function updateFriendList() {
-      online.innerHTML = '';
-      offline.innerHTML = '';
+    // Pour chaque ami, on écoute sa présence en temps réel
+    Object.keys(friendUids).forEach(fid => {
+      db.ref('users/' + fid).once('value', uSnap => {
+        const user = uSnap.val();
+        const username = user?.username || fid;
+        const isKyky = username.toLowerCase() === "kykygosed";
+        const crown = isKyky ? '<img src="crown.png" style="height: 20px; margin-left: auto;">' : '';
 
-      Object.keys(friendUids).forEach(fid => {
-        db.ref('users/' + fid).once('value', uSnap => {
-          const user = uSnap.val();
-          const username = user?.username || fid;
-          const playing = user?.playing || 'Écran d’accueil';
-          const isKyky = username.toLowerCase() === "kykygosed";
-          const crown = isKyky ? '<img src="crown.png" style="height: 20px; margin-left: auto;">' : '';
+        db.ref('presence/' + fid).on('value', pSnap => {
+          const isOnline = pSnap.val() === true;
+          const playing = isOnline ? (user?.playing || 'Écran d’accueil') : 'Hors ligne';
 
-          db.ref('presence/' + fid).on('value', pSnap => {
-            const isOnline = pSnap.val() === true;
-            const html = `
-              <div class="friend" style="display: flex; justify-content: space-between; align-items: center;">
-                <div>
-                  ${username}<br>
-                  <span class="status">${isOnline ? playing : 'Hors ligne'}</span>
-                </div>
-                ${crown}
+          // Crée le bloc ami
+          const html = `
+            <div class="friend" data-uid="${fid}" style="display: flex; justify-content: space-between; align-items: center;">
+              <div>
+                ${username}<br>
+                <span class="status">${playing}</span>
               </div>
-            `;
+              ${crown}
+            </div>
+          `;
 
-            // Ajoute en ligne ou hors ligne dynamiquement
-            const container = isOnline ? online : offline;
-            // Supprime d'abord l'existant de ce user
-            const existing = container.querySelector(`[data-uid="${fid}"]`);
-            if (existing) existing.remove();
-            const wrapper = document.createElement('div');
-            wrapper.innerHTML = html;
-            wrapper.firstElementChild.setAttribute('data-uid', fid);
-            container.appendChild(wrapper.firstElementChild);
-          });
+          // Supprime cet utilisateur des deux listes s’il existe déjà
+          const existingOnline = online.querySelector(`[data-uid="${fid}"]`);
+          if (existingOnline) existingOnline.remove();
+          const existingOffline = offline.querySelector(`[data-uid="${fid}"]`);
+          if (existingOffline) existingOffline.remove();
+
+          // Ajoute dans la bonne liste
+          const wrapper = document.createElement('div');
+          wrapper.innerHTML = html;
+          const friendElement = wrapper.firstElementChild;
+
+          if (isOnline) {
+            online.appendChild(friendElement);
+          } else {
+            offline.appendChild(friendElement);
+          }
         });
       });
-    }
-
-    updateFriendList(); // Chargement initial
+    });
   });
 }
 
