@@ -113,6 +113,51 @@
   font-size: 12px;
   color: #ccc;
 }
+.friend-section {
+  margin-top: 30px;
+}
+
+.friend-header {
+  position: relative;
+  margin-bottom: 10px;
+}
+
+.friend-label {
+  font-family: 'Press Start 2P', cursive;
+  font-size: 10px;
+  padding: 4px 10px;
+  display: inline-block;
+  position: relative;
+  z-index: 2;
+  border-radius: 0;
+}
+
+.friend-label.green {
+  background-color: #4caf50;
+  color: white;
+}
+
+.friend-label.gray {
+  background-color: #777;
+  color: white;
+}
+
+.friend-line {
+  height: 4px;
+  width: 100%;
+  position: absolute;
+  top: 50%;
+  left: 0;
+  z-index: 1;
+}
+
+.friend-line.green {
+  background-color: #4caf50;
+}
+
+.friend-line.gray {
+  background-color: #777;
+}
 
 
   </style>
@@ -129,14 +174,27 @@
     <div id="worldList"></div>
   </div>
 
-  <div id="friends" class="content" style="display:none">
-    <input type="text" placeholder="Rechercher un joueur..." oninput="searchUsers(this.value)">
-    <div id="searchResults"></div>
-    <h3>En ligne</h3>
+<div id="friends" class="content" style="display:none">
+  <input type="text" placeholder="Rechercher un joueur..." oninput="searchUsers(this.value)">
+  <div id="searchResults"></div>
+
+  <div class="friend-section online">
+    <div class="friend-header">
+      <div class="friend-label green">En ligne</div>
+      <div class="friend-line green"></div>
+    </div>
     <div id="friendsOnline"></div>
-    <h3>Hors ligne</h3>
+  </div>
+
+  <div class="friend-section offline">
+    <div class="friend-header">
+      <div class="friend-label gray">Hors ligne</div>
+      <div class="friend-line gray"></div>
+    </div>
     <div id="friendsOffline"></div>
   </div>
+</div>
+
 
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
