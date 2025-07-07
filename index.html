@@ -72,6 +72,37 @@
     .status {
       color: grey;
     }
+    .world-item {
+  display: flex;
+  background: #2a2a2a;
+  border: 1px solid #444;
+  padding: 10px;
+  margin-bottom: 10px;
+  border-radius: 10px;
+  align-items: center;
+}
+.world-thumb {
+  width: 100px;
+  height: 80px;
+  object-fit: cover;
+  margin-right: 15px;
+}
+.world-info {
+  flex: 1;
+}
+.world-name {
+  font-size: 12px;
+  font-weight: bold;
+}
+.world-type img {
+  height: 20px;
+  margin-right: 5px;
+}
+.world-meta {
+  font-size: 10px;
+  text-align: right;
+}
+
   </style>
 </head>
 <body>
@@ -99,121 +130,145 @@
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
   <script>
-    const firebaseConfig = {
-      apiKey: "AIzaSyBPq6Wfxzq02MfK69BFxHm9_FUjDGTmAcw",
-      authDomain: "kykychat-24c7f.firebaseapp.com",
-      databaseURL: "https://kykychat-24c7f-default-rtdb.firebaseio.com",
-      projectId: "kykychat-24c7f",
-      storageBucket: "kykychat-24c7f.firebasestorage.app",
-      messagingSenderId: "342562811927",
-      appId: "1:342562811927:web:0fed1e1f511c4fddcfec52"
-    };
-    firebase.initializeApp(firebaseConfig);
-    const auth = firebase.auth();
-    const db = firebase.database();
+const firebaseConfig = {
+  apiKey: "AIzaSyBPq6Wfxzq02MfK69BFxHm9_FUjDGTmAcw",
+  authDomain: "kykychat-24c7f.firebaseapp.com",
+  databaseURL: "https://kykychat-24c7f-default-rtdb.firebaseio.com",
+  projectId: "kykychat-24c7f",
+  storageBucket: "kykychat-24c7f.firebasestorage.app",
+  messagingSenderId: "342562811927",
+  appId: "1:342562811927:web:0fed1e1f511c4fddcfec52"
+};
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.database();
 
-    function switchTab(tab) {
-      document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
-      document.querySelectorAll('.content').forEach(el => el.style.display = 'none');
-      document.querySelector('.tab[onclick*="'+tab+'"]').classList.add('active');
-      document.getElementById(tab).style.display = 'block';
-    }
+function switchTab(tab) {
+  document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.content').forEach(el => el.style.display = 'none');
+  document.querySelector('.tab[onclick*="'+tab+'"]').classList.add('active');
+  document.getElementById(tab).style.display = 'block';
+}
 
-    function showWorlds(uid) {
-      const worldList = document.getElementById('worldList');
-      db.ref('worlds/' + uid).once('value', snap => {
-        const data = snap.val();
-        if (!data) {
-          worldList.innerHTML = '<img src="noworlds.png" style="width:100%">';
-        } else {
-          worldList.innerHTML = '';
-          Object.values(data).forEach(world => {
-            worldList.innerHTML += `<div class="world"> <div><strong>${world.name}</strong><br>${world.mode}</div></div>`;
-          });
-        }
+function showWorlds(uid) {
+  const worldList = document.getElementById('worldList');
+  db.ref('users/' + uid + '/worlds').once('value', snap => {
+    const data = snap.val();
+    if (!data) {
+      worldList.innerHTML = '<img src="noworlds.png" style="width:100%">';
+    } else {
+      worldList.innerHTML = '';
+      Object.values(data).forEach(world => {
+        let modeTag = {
+          normal: 'normaltag.png',
+          triche: 'trichetag.png',
+          explorateur: 'explorateurtag.png'
+        }[world.mode] || 'normaltag.png';
+
+        const uniqueTag = world.unique ? `<img src="uniquetag.png" />` : '';
+
+        worldList.innerHTML += `
+          <div class="world-item">
+            <img class="world-thumb" src="https://i.imgur.com/ZVjToUu.png" />
+            <div class="world-info">
+              <div class="world-name">${world.name}</div>
+              <div class="world-type">
+                <img src="${modeTag}" />
+                ${uniqueTag}
+              </div>
+            </div>
+            <div class="world-meta">
+              <div>${world.size}</div>
+              <div>${world.createdAt}</div>
+            </div>
+          </div>
+        `;
       });
     }
+  });
+}
 
-    function searchUsers(query) {
-      const results = document.getElementById('searchResults');
-      results.innerHTML = '';
-      if (!query || !auth.currentUser) return;
-      db.ref('users').once('value', snap => {
-        const users = snap.val();
-        if (!users) return;
-        Object.entries(users).forEach(([uid, user]) => {
-          if (user.username && user.username.toLowerCase().includes(query.toLowerCase()) && uid !== auth.currentUser.uid) {
-            db.ref('friends/' + auth.currentUser.uid + '/' + uid).once('value', fSnap => {
-              if (!fSnap.exists()) {
-                results.innerHTML += `<div class="friend"><div>${user.username}</div><button class="btn" onclick="addFriend('${uid}')">Ajouter !</button></div>`;
-              }
-            });
+function searchUsers(query) {
+  const results = document.getElementById('searchResults');
+  results.innerHTML = '';
+  if (!query || !auth.currentUser) return;
+  db.ref('users').once('value', snap => {
+    const users = snap.val();
+    if (!users) return;
+    Object.entries(users).forEach(([uid, user]) => {
+      if (user.username && user.username.toLowerCase().includes(query.toLowerCase()) && uid !== auth.currentUser.uid) {
+        db.ref('friends/' + auth.currentUser.uid + '/' + uid).once('value', fSnap => {
+          if (!fSnap.exists()) {
+            results.innerHTML += `<div class="friend"><div>${user.username}</div><button class="btn" onclick="addFriend('${uid}')">Ajouter !</button></div>`;
           }
         });
-      });
-    }
-
-    function addFriend(friendUid) {
-      const user = auth.currentUser;
-      if (!user) return;
-      db.ref('friends/' + user.uid + '/' + friendUid).set(true);
-    }
-
-    function loadFriends(uid) {
-      const online = document.getElementById('friendsOnline');
-      const offline = document.getElementById('friendsOffline');
-      online.innerHTML = offline.innerHTML = '';
-
-      db.ref('friends/' + uid).on('value', snap => {
-        const friendUids = snap.val();
-        if (!friendUids) return;
-        Object.keys(friendUids).forEach(fid => {
-          db.ref('presence/' + fid).once('value', pSnap => {
-            const isOnline = pSnap.val() === true;
-            db.ref('users/' + fid).once('value', uSnap => {
-              const user = uSnap.val();
-              const playing = isOnline ? (user?.playing || 'Écran d’accueil') : 'Hors ligne';
-              const html = `<div class="friend"><div>${user?.username || fid}<br><span class="status">${playing}</span></div></div>`;
-              if (isOnline) online.innerHTML += html;
-              else offline.innerHTML += html;
-            });
-          });
-        });
-      });
-    }
-
-    auth.onAuthStateChanged(user => {
-      if (user) {
-        const pseudo = user.email.split('@')[0];
-        const userRef = db.ref('users/' + user.uid);
-        userRef.update({ username: pseudo, playing: 'Écran d’accueil' });
-
-        db.ref('presence/' + user.uid).set(true);
-        db.ref('presence/' + user.uid).onDisconnect().set(false);
-
-        showWorlds(user.uid);
-        loadFriends(user.uid);
-      } else {
-        const pseudo = prompt("Entrez votre pseudo :");
-        const email = `${pseudo}@kykycraft.com`;
-        const password = prompt("Mot de passe :");
-
-        auth.signInWithEmailAndPassword(email, password)
-          .then(cred => {
-            db.ref('users/' + cred.user.uid).update({ username: pseudo, playing: 'Écran d’accueil' });
-            showWorlds(cred.user.uid);
-            loadFriends(cred.user.uid);
-          })
-          .catch(() => {
-            auth.createUserWithEmailAndPassword(email, password)
-              .then(cred => {
-                db.ref('users/' + cred.user.uid).set({ username: pseudo, playing: 'Écran d’accueil' });
-                showWorlds(cred.user.uid);
-                loadFriends(cred.user.uid);
-              });
-          });
       }
     });
+  });
+}
+
+function addFriend(friendUid) {
+  const user = auth.currentUser;
+  if (!user) return;
+  db.ref('friends/' + user.uid + '/' + friendUid).set(true);
+}
+
+function loadFriends(uid) {
+  const online = document.getElementById('friendsOnline');
+  const offline = document.getElementById('friendsOffline');
+  online.innerHTML = offline.innerHTML = '';
+
+  db.ref('friends/' + uid).on('value', snap => {
+    const friendUids = snap.val();
+    if (!friendUids) return;
+    Object.keys(friendUids).forEach(fid => {
+      db.ref('presence/' + fid).once('value', pSnap => {
+        const isOnline = pSnap.val() === true;
+        db.ref('users/' + fid).once('value', uSnap => {
+          const user = uSnap.val();
+          const playing = isOnline ? (user?.playing || 'Écran d’accueil') : 'Hors ligne';
+          const html = `<div class="friend"><div>${user?.username || fid}<br><span class="status">${playing}</span></div></div>`;
+          if (isOnline) online.innerHTML += html;
+          else offline.innerHTML += html;
+        });
+      });
+    });
+  });
+}
+
+auth.onAuthStateChanged(user => {
+  if (user) {
+    const pseudo = user.email.split('@')[0];
+    const userRef = db.ref('users/' + user.uid);
+    userRef.update({ username: pseudo, playing: 'Écran d’accueil' });
+
+    db.ref('presence/' + user.uid).set(true);
+    db.ref('presence/' + user.uid).onDisconnect().set(false);
+
+    showWorlds(user.uid);
+    loadFriends(user.uid);
+  } else {
+    const pseudo = prompt("Entrez votre pseudo :");
+    const email = `${pseudo}@kykycraft.com`;
+    const password = prompt("Mot de passe :");
+
+    auth.signInWithEmailAndPassword(email, password)
+      .then(cred => {
+        db.ref('users/' + cred.user.uid).update({ username: pseudo, playing: 'Écran d’accueil' });
+        showWorlds(cred.user.uid);
+        loadFriends(cred.user.uid);
+      })
+      .catch(() => {
+        auth.createUserWithEmailAndPassword(email, password)
+          .then(cred => {
+            db.ref('users/' + cred.user.uid).set({ username: pseudo, playing: 'Écran d’accueil' });
+            showWorlds(cred.user.uid);
+            loadFriends(cred.user.uid);
+          });
+      });
+  }
+});
+
   </script>
 </body>
 </html>
