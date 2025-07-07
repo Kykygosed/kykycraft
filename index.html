@@ -290,8 +290,12 @@ function loadFriends(uid) {
         const isOnline = pSnap.val() === true;
         db.ref('users/' + fid).once('value', uSnap => {
           const user = uSnap.val();
+          const username = user?.username || fid;
           const playing = isOnline ? (user?.playing || 'Écran d’accueil') : 'Hors ligne';
-          const html = `<div class="friend"><div>${user?.username || fid}<br><span class="status">${playing}</span></div></div>`;
+          const isKyky = username.toLowerCase() === "kykygosed";
+          const crown = isKyky ? ' <img src="crown.png" style="width: 16px; vertical-align: middle; margin-left: 5px;">' : '';
+          const html = `<div class="friend"><div>${username}${crown}<br><span class="status">${playing}</span></div></div>`;
+
           if (isOnline) online.innerHTML += html;
           else offline.innerHTML += html;
         });
@@ -299,6 +303,7 @@ function loadFriends(uid) {
     });
   });
 }
+
 
 auth.onAuthStateChanged(user => {
   if (user) {
