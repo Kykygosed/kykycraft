@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Créer un monde</title>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+  <style>
+    * { font-family: 'Press Start 2P', cursive; box-sizing: border-box; }
+    body {
+      background: url('background.png') no-repeat center center fixed;
+      background-size: cover;
+      color: white;
+      padding: 20px;
+    }
+    .container {
+      background: rgba(0,0,0,0.7);
+      padding: 20px;
+      display: flex;
+    }
+    .sidebar {
+      width: 200px;
+      margin-right: 20px;
+    }
+    .sidebar button {
+      display: block;
+      width: 100%;
+      margin-bottom: 10px;
+      padding: 10px;
+      background: #333;
+      color: white;
+      border: none;
+      cursor: not-allowed;
+    }
+    .main {
+      flex: 1;
+    }
+    .section {
+      margin-bottom: 20px;
+    }
+    .label {
+      margin-bottom: 5px;
+    }
+    input[type="text"] {
+      width: 100%;
+      padding: 10px;
+    }
+    .option-group button {
+      padding: 10px;
+      margin-right: 10px;
+      background: #555;
+      color: white;
+      border: none;
+    }
+    .option-group button.selected {
+      background: green;
+    }
+    .footer-btn {
+      padding: 15px;
+      font-size: 14px;
+      background: green;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <h1>CRÉER UN NOUVEAU MONDE</h1>
+  <div class="container">
+    <div class="sidebar">
+      <img src="https://i.imgur.com/ZVjToUu.png" style="width:100%; margin-bottom: 10px;">
+      <button id="createBtn" onclick="createWorld()">CRÉER</button>
+      <button disabled>Créer sur un serveur</button>
+      <button style="background: #222; cursor: default;">Général</button>
+    </div>
+
+    <div class="main">
+      <div class="section">
+        <div class="label">Nom du monde</div>
+        <input type="text" id="worldName" placeholder="Mon monde">
+      </div>
+      <div class="section">
+        <div class="label">Mode de jeu</div>
+        <div class="option-group" id="modeGroup">
+          <button onclick="selectMode(this, 'normal')">Normal</button>
+          <button onclick="selectMode(this, 'triche')">Triche</button>
+          <button onclick="selectMode(this, 'explorateur')">Explorateur</button>
+        </div>
+      </div>
+      <div class="section">
+        <div class="label">Difficulté</div>
+        <div class="option-group" id="difficultyGroup">
+          <button onclick="selectDifficulty(this, 'Facile')">Facile</button>
+          <button onclick="selectDifficulty(this, 'Normale')">Normale</button>
+          <button onclick="selectDifficulty(this, 'Difficile')">Difficile</button>
+        </div>
+      </div>
+      <div class="section">
+        <div class="label">Unique</div>
+        <input type="checkbox" id="uniqueMode"> Le monde devient inaccessible après la défaite. Bonne chance à vous !
+      </div>
+    </div>
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyBPq6Wfxzq02MfK69BFxHm9_FUjDGTmAcw",
+      authDomain: "kykychat-24c7f.firebaseapp.com",
+      databaseURL: "https://kykychat-24c7f-default-rtdb.firebaseio.com",
+      projectId: "kykychat-24c7f",
+      storageBucket: "kykychat-24c7f.appspot.com",
+      messagingSenderId: "342562811927",
+      appId: "1:342562811927:web:0fed1e1f511c4fddcfec52"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.database();
+
+    let selectedMode = 'normal';
+    let selectedDifficulty = 'Normale';
+
+    function selectMode(btn, mode) {
+      document.querySelectorAll('#modeGroup button').forEach(b => b.classList.remove('selected'));
+      btn.classList.add('selected');
+      selectedMode = mode;
+    }
+    function selectDifficulty(btn, difficulty) {
+      document.querySelectorAll('#difficultyGroup button').forEach(b => b.classList.remove('selected'));
+      btn.classList.add('selected');
+      selectedDifficulty = difficulty;
+    }
+
+    function createWorld() {
+      const name = document.getElementById('worldName').value || 'Mon monde';
+      const unique = document.getElementById('uniqueMode').checked;
+      const user = auth.currentUser;
+      if (!user) return;
+
+      const id = db.ref().child('worlds').push().key;
+      const creationDate = new Date().toLocaleDateString();
+      const size = Math.floor(Math.random() * 100 + 50) + ' Mo';
+
+      const data = {
+        name,
+        mode: selectedMode,
+        difficulty: selectedDifficulty,
+        unique,
+        createdAt: creationDate,
+        size
+      };
+
+      db.ref('worlds/' + user.uid + '/' + id).set(data).then(() => {
+        window.location.href = 'index.html';
+      });
+    }
+
+    auth.onAuthStateChanged(user => {
+      if (!user) {
+        window.location.href = 'index.html';
+      }
+    });
+  </script>
+</body>
+</html>
