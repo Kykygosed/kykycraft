@@ -172,7 +172,7 @@
             const isOnline = pSnap.val() === true;
             db.ref('users/' + fid).once('value', uSnap => {
               const user = uSnap.val();
-              const playing = user?.playing || 'Écran d’accueil';
+              const playing = isOnline ? (user?.playing || 'Écran d’accueil') : 'Hors ligne';
               const html = `<div class="friend"><div>${user?.username || fid}<br><span class="status">${playing}</span></div></div>`;
               if (isOnline) online.innerHTML += html;
               else offline.innerHTML += html;
@@ -184,9 +184,9 @@
 
     auth.onAuthStateChanged(user => {
       if (user) {
-        const username = user.email.split('@')[0];
+        const pseudo = user.email.split('@')[0];
         const userRef = db.ref('users/' + user.uid);
-        userRef.update({ username, playing: 'Écran d’accueil' });
+        userRef.update({ username: pseudo, playing: 'Écran d’accueil' });
 
         db.ref('presence/' + user.uid).set(true);
         db.ref('presence/' + user.uid).onDisconnect().set(false);
@@ -196,7 +196,7 @@
       } else {
         const pseudo = prompt("Entrez votre pseudo :");
         const email = `${pseudo}@kykycraft.com`;
-        const password = "defaultPassword123";
+        const password = prompt("Mot de passe :");
 
         auth.signInWithEmailAndPassword(email, password)
           .then(cred => {
