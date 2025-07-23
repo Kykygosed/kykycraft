@@ -273,17 +273,17 @@ function showWorlds(uid) {
 }
 
 function playWorld(worldName, uid) {
-  const nowPlayingRef = db.ref(`users/${uid}/playing/nowPlaying`);
-
+  const nowPlayingRef = db.ref(`users/${uid}/playing`);
   nowPlayingRef.set(worldName)
     .then(() => {
       window.location.href = 'join.html';
     })
     .catch((error) => {
-      console.error("Erreur lors de la mise à jour de nowPlaying :", error);
+      console.error("Erreur lors de la mise à jour de playing :", error);
       alert("Erreur, veuillez réessayer.");
     });
 }
+
 
 
 
