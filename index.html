@@ -12,7 +12,7 @@
       padding: 0;
     }
 body {
-  background-image: url('https://imgur.com/ZO39gku.jpeg');
+  background-image: url('background.png');
   background-size: cover; /* ou "contain" selon l'effet voulu */
   background-repeat: no-repeat;
   background-position: center;
@@ -179,7 +179,7 @@ body {
   </style>
 </head>
 <body>
-  <header></header>
+  <header>JOUER</header>
   <div class="tabs">
     <div class="tab active" onclick="switchTab('worlds')">Mondes</div>
     <div class="tab" onclick="switchTab('friends')">Amis</div>
@@ -245,9 +245,9 @@ function showWorlds(uid) {
     } else {
       worldList.innerHTML = '';
       Object.values(data).forEach(world => {
-        const modeBox = <div style="display:inline-block; background:#444; color:white; padding:4px 8px; margin-right:5px;">${world.mode}</div>;
-        const uniqueBox = world.unique ? <div style="display:inline-block; background:gold; color:black; padding:4px 8px;">Unique</div> : '';
-        worldList.innerHTML += 
+        const modeBox = `<div style="display:inline-block; background:#444; color:white; padding:4px 8px; margin-right:5px;">${world.mode}</div>`;
+        const uniqueBox = world.unique ? `<div style="display:inline-block; background:gold; color:black; padding:4px 8px;">Unique</div>` : '';
+        worldList.innerHTML += `
           <div class="world-item">
             <img class="world-thumb" src="https://i.imgur.com/ZVjToUu.png" />
             <div class="world-info">
@@ -261,7 +261,7 @@ function showWorlds(uid) {
               <div>${world.createdAt}</div>
             </div>
           </div>
-        ;
+        `;
       });
     }
   });
@@ -279,7 +279,7 @@ function searchUsers(query) {
       if (user.username && user.username.toLowerCase().includes(query.toLowerCase()) && uid !== auth.currentUser.uid) {
         db.ref('friends/' + auth.currentUser.uid + '/' + uid).once('value', fSnap => {
           if (!fSnap.exists()) {
-            results.innerHTML += <div class="friend"><div>${user.username}</div><button class="btn" onclick="addFriend('${uid}')">Ajouter !</button></div>;
+            results.innerHTML += `<div class="friend"><div>${user.username}</div><button class="btn" onclick="addFriend('${uid}')">Ajouter !</button></div>`;
           }
         });
       }
@@ -319,7 +319,7 @@ function loadFriends(uid) {
           const playing = isOnline ? (user?.playing || 'Écran d’accueil') : 'Hors ligne';
 
           // Crée le bloc ami
-          const html = 
+          const html = `
             <div class="friend" data-uid="${fid}" style="display: flex; justify-content: space-between; align-items: center;">
               <div>
                 ${username}<br>
@@ -327,12 +327,12 @@ function loadFriends(uid) {
               </div>
               ${crown}
             </div>
-          ;
+          `;
 
           // Supprime cet utilisateur des deux listes s’il existe déjà
-          const existingOnline = online.querySelector([data-uid="${fid}"]);
+          const existingOnline = online.querySelector(`[data-uid="${fid}"]`);
           if (existingOnline) existingOnline.remove();
-          const existingOffline = offline.querySelector([data-uid="${fid}"]);
+          const existingOffline = offline.querySelector(`[data-uid="${fid}"]`);
           if (existingOffline) existingOffline.remove();
 
           // Ajoute dans la bonne liste
@@ -365,7 +365,7 @@ auth.onAuthStateChanged(user => {
     loadFriends(user.uid);
   } else {
     const pseudo = prompt("Entrez votre pseudo :");
-    const email = ${pseudo}@kykycraft.com;
+    const email = `${pseudo}@kykycraft.com`;
     const password = prompt("Mot de passe :");
 
     auth.signInWithEmailAndPassword(email, password)
