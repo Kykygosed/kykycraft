@@ -2,150 +2,162 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8" />
-  <title>Chargement du Monde</title>
+  <title>Connexion au Monde</title>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
   <style>
     body {
-      font-family: 'Press Start 2P', cursive, monospace;
-      background: #121212;
-      color: #eee;
+      background-color: #1e1e1e;
+      color: #f2f2f2;
+      font-family: 'Press Start 2P', cursive;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
       text-align: center;
-      padding: 30px;
+      overflow: hidden;
+    }
+    h1 {
+      font-size: 18px;
+      margin-bottom: 30px;
     }
     #tips {
-      margin: 20px auto;
-      font-size: 14px;
-      height: 30px;
-    }
-    button {
-      background: #0078D7;
-      border: none;
-      padding: 10px 20px;
-      font-family: 'Press Start 2P', cursive;
       font-size: 12px;
-      color: white;
-      cursor: pointer;
-      margin-top: 30px;
+      color: #a0ffa0;
+      margin-top: 10px;
+      height: 24px;
+      animation: fade 0.3s ease;
     }
     #errorMessage {
-      color: red;
+      color: #ff5c5c;
+      font-size: 12px;
+      margin-top: 30px;
+      white-space: pre-wrap;
+    }
+    button {
       margin-top: 40px;
-      font-size: 16px;
+      background: #ff0080;
+      border: none;
+      padding: 12px 24px;
+      font-family: 'Press Start 2P', cursive;
+      color: white;
+      font-size: 10px;
+      cursor: pointer;
+      border-radius: 8px;
+      box-shadow: 0 0 10px #ff0080aa;
+      transition: all 0.2s ease;
+      display: none;
+    }
+    button:hover {
+      transform: scale(1.05);
+      background: #ff3399;
+    }
+    @keyframes fade {
+      from { opacity: 0; }
+      to { opacity: 1; }
     }
   </style>
 </head>
 <body>
-  <h1>Vérification de la disponibilité...</h1>
+  <h1>🔄 Vérification de la disponibilité du monde...</h1>
   <div id="tips"></div>
   <div id="errorMessage"></div>
-  <button id="backBtn">Retour à l'accueil</button>
+  <button id="backBtn">↩ Retour à l'accueil</button>
 
+  <!-- Firebase -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
   <script>
-    // === Initialise Firebase ici ===
+    // --- CONFIG FIREBASE ---
     const firebaseConfig = {
-      // ... tes config Firebase ...
+      // Ta configuration ici
     };
     firebase.initializeApp(firebaseConfig);
-    const db = firebase.database();
     const auth = firebase.auth();
+    const db = firebase.database();
 
-    // Liste d'astuces
-    const tips = [
-      "Astuce 1 : N'oublie pas de sauvegarder souvent !",
-      "Astuce 2 : Utilise la touche 'F' pour accéder rapidement à ton inventaire.",
-      "Astuce 3 : Explore les cavernes pour trouver des ressources rares.",
-      "Astuce 4 : Construis un abri avant la nuit pour éviter les monstres.",
-      "Astuce 5 : Utilise des torches pour éclairer ton chemin."
+    const tipsList = [
+      "Astuce : Construis toujours un abri avant la nuit !",
+      "Astuce : L'eau peut te sauver d'une chute.",
+      "Astuce : Le fer est ton meilleur ami au début.",
+      "Astuce : Ne creuse jamais directement sous toi.",
+      "Astuce : Les torches repoussent les monstres !"
     ];
 
     const tipsDiv = document.getElementById('tips');
     const errorDiv = document.getElementById('errorMessage');
     const backBtn = document.getElementById('backBtn');
+    let tipIndex = 0;
 
-    let currentTipIndex = -1;
-
-    function showRandomTip() {
-      let nextIndex;
-      do {
-        nextIndex = Math.floor(Math.random() * tips.length);
-      } while (nextIndex === currentTipIndex);
-      currentTipIndex = nextIndex;
-      tipsDiv.textContent = tips[currentTipIndex];
+    function cycleTips() {
+      tipsDiv.textContent = tipsList[tipIndex];
+      tipIndex = (tipIndex + 1) % tipsList.length;
     }
 
-    // Changer l'astuce toutes les 6 secondes
-    showRandomTip();
-    const tipInterval = setInterval(showRandomTip, 6000);
+    setInterval(cycleTips, 5000);
+    cycleTips();
 
-    // Récupère l'UID du joueur connecté
-    let currentUserUid = null;
-    auth.onAuthStateChanged(user => {
-      if (user) {
-        currentUserUid = user.uid;
-      } else {
-        // Pas connecté, on redirige
-        window.location.href = "index.html";
-      }
-    });
-
-    // Fonction pour remettre playing à "Ecran d'accueil" et retourner à index.html
+    // Retour à l'accueil
     function backToHome() {
-      if (!currentUserUid) {
+      auth.onAuthStateChanged(user => {
+        if (user) {
+          db.ref("users/" + user.uid + "/playing").set("Ecran d'accueil").then(() => {
+            window.location.href = "index.html";
+          });
+        } else {
+          window.location.href = "index.html";
+        }
+      });
+    }
+
+    backBtn.onclick = backToHome;
+
+    // Vérifie disponibilité
+    function checkDisponibility(user) {
+      const dispoRef = db.ref("disponibility");
+
+      dispoRef.once('value').then(snapshot => {
+        const val = snapshot.exists() ? snapshot.val() : null;
+
+        if (val === null) {
+          dispoRef.set(true);
+        }
+
+        if (val !== true && val !== null) {
+          showError("❌ Erreur de connexion au monde :\n" + val);
+        }
+      }).catch(err => {
+        showError("❌ Une erreur est survenue :\n" + err.message);
+      });
+    }
+
+    function showError(msg) {
+      document.querySelector("h1").textContent = "Connexion échouée.";
+      tipsDiv.textContent = "";
+      errorDiv.textContent = msg;
+      backBtn.style.display = "inline-block";
+    }
+
+    // Auth check
+    auth.onAuthStateChanged(user => {
+      if (!user) {
         window.location.href = "index.html";
         return;
       }
-      db.ref(`users/${currentUserUid}/playing`).set("Ecran d'accueil").then(() => {
-        window.location.href = "index.html";
-      }).catch(() => {
-        window.location.href = "index.html";
-      });
-    }
 
-    backBtn.addEventListener('click', backToHome);
-
-    // Vérification de la disponibilité
-    function checkDisponibility() {
-      const disponibilityRef = db.ref('disponibility');
-
-      disponibilityRef.once('value').then(snapshot => {
-        if (!snapshot.exists()) {
-          // Crée la clé dispo avec true si elle n'existe pas
-          disponibilityRef.set(true);
-          // Tout est OK, on laisse la page telle quelle (message + astuces)
-        } else {
-          const val = snapshot.val();
-          if (val === true) {
-            // Disponibilité OK, on reste sur la page de chargement
-          } else {
-            // Valeur autre que true : on affiche erreur
-            clearInterval(tipInterval);
-            document.querySelector('h1').textContent = "Erreur de connexion au monde : " + val;
-            tipsDiv.textContent = "";
-            errorDiv.textContent = "";
-            backBtn.style.display = "inline-block";
-          }
+      // Set playing pour marquer qu'on rejoint un monde
+      db.ref("users/" + user.uid + "/playing").once("value").then(p => {
+        const currentWorld = p.val();
+        if (!currentWorld || currentWorld === "Ecran d'accueil") {
+          db.ref("users/" + user.uid + "/playing").set("Chargement...");
         }
-      }).catch(error => {
-        clearInterval(tipInterval);
-        document.querySelector('h1').textContent = "Erreur lors de la vérification : " + error.message;
-        tipsDiv.textContent = "";
-        backBtn.style.display = "inline-block";
       });
-    }
 
-    // Check disponibility dès que l'UID est défini (on attend max 5s)
-    function waitForUserAndCheck() {
-      if (currentUserUid) {
-        checkDisponibility();
-      } else {
-        setTimeout(waitForUserAndCheck, 500);
-      }
-    }
-    waitForUserAndCheck();
-
+      checkDisponibility(user);
+    });
   </script>
 </body>
 </html>
