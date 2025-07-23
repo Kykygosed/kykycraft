@@ -89,12 +89,12 @@
     const title = document.getElementById("title");
 
     const tipsList = [
-      "💡 Astuce : Utilise les portails pour voyager rapidement.",
-      "💡 Astuce : Les creepers aiment les surprises...",
-      "💡 Astuce : Évite de miner juste sous toi.",
-      "💡 Astuce : L’eau peut sauver ta chute.",
-      "💡 Astuce : Les torches préviennent les apparitions hostiles.",
-      "💡 Astuce : Garde toujours un seau d'eau sur toi !"
+      "💡 Astuce : On ne spoil pas ;)",
+      "💡 Astuce : On ne spoil pas ;)",
+      "💡 Astuce : On ne spoil pas ;)",
+      "💡 Astuce : On ne spoil pas ;)",
+      "💡 Astuce : On ne spoil pas ;)",
+      "💡 Astuce : On ne spoil pas ;)"
     ];
     let tipIndex = 0;
 
@@ -128,14 +128,15 @@
         let val = snapshot.val();
 
         if (val === null) {
-          dispoRef.set(true);
-          val = true;
+          dispoRef.set(true); // on crée la clé si elle n'existe pas
+          return;
         }
 
         if (val === true) {
-          title.textContent = "✅ Monde disponible. Connexion en cours...";
-          // Tu peux ajouter une redirection ici plus tard si tu veux
+          // monde dispo = on reste sur cette page (chargement infini avec tips)
+          console.log("✅ Monde disponible. Attente de connexion...");
         } else {
+          // Monde non dispo → afficher message d'erreur
           showError("❌ Erreur de connexion au monde :\n" + val);
         }
       }).catch(err => {
@@ -143,13 +144,12 @@
       });
     }
 
-    // Attendre que Firebase ait fini de détecter la session
-    firebase.auth().onAuthStateChanged(user => {
+    auth.onAuthStateChanged(user => {
       if (user) {
         db.ref("users/" + user.uid + "/playing").set("Connexion au monde");
         checkDisponibility(user);
       } else {
-        // Pas connecté, mais on NE redirige PAS
+        // Pas connecté = on reste sur la page sans rediriger
         title.textContent = "⏳ En attente de connexion...";
         backBtn.style.display = "inline-block";
       }
