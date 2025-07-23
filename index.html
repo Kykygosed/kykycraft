@@ -247,25 +247,44 @@ function showWorlds(uid) {
       Object.values(data).forEach(world => {
         const modeBox = `<div style="display:inline-block; background:#444; color:white; padding:4px 8px; margin-right:5px;">${world.mode}</div>`;
         const uniqueBox = world.unique ? `<div style="display:inline-block; background:gold; color:black; padding:4px 8px;">Unique</div>` : '';
+
         worldList.innerHTML += `
-          <div class="world-item">
-            <img class="world-thumb" src="https://i.imgur.com/ZVjToUu.png" />
-            <div class="world-info">
-              <div class="world-name">${world.name}</div>
+          <div class="world-item" style="display:flex; align-items:center; margin-bottom:10px; background:#222; padding:10px; border-radius:6px;">
+            <img class="world-thumb" src="https://i.imgur.com/ZVjToUu.png" style="width:60px; height:60px; margin-right:10px;" />
+            <div class="world-info" style="flex-grow:1;">
+              <div class="world-name" style="font-weight:bold; font-size:1.1em;">${world.name}</div>
               <div class="world-type">
                 ${modeBox}${uniqueBox}
               </div>
             </div>
-            <div class="world-meta">
+            <div class="world-meta" style="margin-right:15px; text-align:right; font-size:0.9em; color:#aaa;">
               <div>${world.size}</div>
               <div>${world.createdAt}</div>
             </div>
+            <button 
+              style="background:#28a745; color:white; border:none; padding:8px 12px; border-radius:4px; cursor:pointer;"
+              onclick="playWorld('${world.name}', '${uid}')"
+            >Jouer</button>
           </div>
         `;
       });
     }
   });
 }
+
+function playWorld(worldName, uid) {
+  const nowPlayingRef = db.ref(`users/${uid}/playing/nowPlaying`);
+
+  nowPlayingRef.set(worldName)
+    .then(() => {
+      window.location.href = 'join.html';
+    })
+    .catch((error) => {
+      console.error("Erreur lors de la mise à jour de nowPlaying :", error);
+      alert("Erreur, veuillez réessayer.");
+    });
+}
+
 
 
 function searchUsers(query) {
