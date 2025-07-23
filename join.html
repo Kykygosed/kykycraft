@@ -1,95 +1,100 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8" />
-  <title>Connexion au Monde</title>
-  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+  <meta charset="UTF-8">
+  <title>Connexion au monde...</title>
   <style>
+    @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+
     body {
-      background-color: #1e1e1e;
-      color: #f2f2f2;
+      margin: 0;
+      padding: 0;
       font-family: 'Press Start 2P', cursive;
+      background: linear-gradient(#1e1e1e, #121212);
+      color: white;
       display: flex;
       flex-direction: column;
-      justify-content: center;
       align-items: center;
-      height: 100vh;
-      margin: 0;
+      justify-content: center;
+      min-height: 100vh;
       text-align: center;
-      overflow: hidden;
     }
+
     h1 {
-      font-size: 18px;
-      margin-bottom: 30px;
+      margin-bottom: 20px;
+      font-size: 16px;
     }
+
     #tips {
+      margin: 10px 0;
       font-size: 12px;
-      color: #a0ffa0;
-      margin-top: 10px;
-      height: 24px;
-      animation: fade 0.3s ease;
+      color: #aaa;
     }
-    #errorMessage {
-      color: #ff5c5c;
-      font-size: 12px;
-      margin-top: 30px;
+
+    #error {
+      color: #ff4c4c;
+      margin-top: 20px;
       white-space: pre-wrap;
+      font-size: 12px;
     }
-    button {
-      margin-top: 40px;
-      background: #ff0080;
-      border: none;
-      padding: 12px 24px;
-      font-family: 'Press Start 2P', cursive;
-      color: white;
-      font-size: 10px;
-      cursor: pointer;
-      border-radius: 8px;
-      box-shadow: 0 0 10px #ff0080aa;
-      transition: all 0.2s ease;
+
+    #back {
       display: none;
+      margin-top: 30px;
+      padding: 10px 20px;
+      background: #444;
+      color: white;
+      border: 2px solid white;
+      cursor: pointer;
+      font-family: 'Press Start 2P', cursive;
+      font-size: 10px;
+      transition: background 0.3s;
     }
-    button:hover {
-      transform: scale(1.05);
-      background: #ff3399;
-    }
-    @keyframes fade {
-      from { opacity: 0; }
-      to { opacity: 1; }
+
+    #back:hover {
+      background: #666;
     }
   </style>
 </head>
 <body>
-  <h1>🔄 Vérification de la disponibilité du monde...</h1>
+  <h1 id="title">🔄 Vérification de la disponibilité du monde...</h1>
   <div id="tips"></div>
-  <div id="errorMessage"></div>
-  <button id="backBtn">↩ Retour à l'accueil</button>
+  <div id="error"></div>
+  <button id="back" onclick="goBack()">⬅ Retour à l'écran d'accueil</button>
 
-  <!-- Firebase -->
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+  <!-- Firebase SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
 
   <script>
-    // --- CONFIG FIREBASE ---
     const firebaseConfig = {
-      // Ta configuration ici
+      apiKey: "TON_API_KEY",
+      authDomain: "TON_DOMAINE.firebaseapp.com",
+      databaseURL: "https://TON_DOMAINE.firebaseio.com",
+      projectId: "TON_PROJECT_ID",
+      storageBucket: "TON_DOMAINE.appspot.com",
+      messagingSenderId: "TON_ID",
+      appId: "TON_APP_ID"
     };
     firebase.initializeApp(firebaseConfig);
-    const auth = firebase.auth();
     const db = firebase.database();
+    const auth = firebase.auth();
+  </script>
+
+  <script>
+    const tipsDiv = document.getElementById("tips");
+    const errorDiv = document.getElementById("error");
+    const backBtn = document.getElementById("back");
 
     const tipsList = [
-      "Astuce : Construis toujours un abri avant la nuit !",
-      "Astuce : L'eau peut te sauver d'une chute.",
-      "Astuce : Le fer est ton meilleur ami au début.",
-      "Astuce : Ne creuse jamais directement sous toi.",
-      "Astuce : Les torches repoussent les monstres !"
+      "💡 Astuce : Utilise les portails pour voyager rapidement.",
+      "💡 Astuce : Les creepers aiment les surprises...",
+      "💡 Astuce : Évite de miner juste sous toi.",
+      "💡 Astuce : L’eau peut sauver ta chute.",
+      "💡 Astuce : Les torches préviennent les apparitions hostiles.",
+      "💡 Astuce : Garde toujours un seau d'eau sur toi !"
     ];
-
-    const tipsDiv = document.getElementById('tips');
-    const errorDiv = document.getElementById('errorMessage');
-    const backBtn = document.getElementById('backBtn');
     let tipIndex = 0;
 
     function cycleTips() {
@@ -98,35 +103,27 @@
     }
 
     setInterval(cycleTips, 5000);
-    cycleTips();
-
-    // Retour à l'accueil
-    function backToHome() {
-      auth.onAuthStateChanged(user => {
-        if (user) {
-          db.ref("users/" + user.uid + "/playing").set("Ecran d'accueil").then(() => {
-            window.location.href = "index.html";
-          });
-        } else {
-          window.location.href = "index.html";
-        }
-      });
-    }
-
-    backBtn.onclick = backToHome;
+    cycleTips(); // Lancer immédiatement
 
     // Vérifie disponibilité
     function checkDisponibility(user) {
       const dispoRef = db.ref("disponibility");
 
       dispoRef.once('value').then(snapshot => {
-        const val = snapshot.exists() ? snapshot.val() : null;
+        let val = snapshot.val();
 
         if (val === null) {
+          // Créer la clé si elle n'existe pas
           dispoRef.set(true);
+          val = true;
         }
 
-        if (val !== true && val !== null) {
+        if (val === true) {
+          // Rediriger après délai
+          setTimeout(() => {
+            window.location.href = "world.html"; // à adapter
+          }, 2000);
+        } else {
           showError("❌ Erreur de connexion au monde :\n" + val);
         }
       }).catch(err => {
@@ -141,21 +138,23 @@
       backBtn.style.display = "inline-block";
     }
 
-    // Auth check
+    function goBack() {
+      auth.onAuthStateChanged(user => {
+        if (user) {
+          db.ref("users/" + user.uid + "/playing").set("Ecran d'accueil");
+        }
+        window.location.href = "index.html";
+      });
+    }
+
+    // Auth check et début
     auth.onAuthStateChanged(user => {
       if (!user) {
         window.location.href = "index.html";
         return;
       }
 
-      // Set playing pour marquer qu'on rejoint un monde
-      db.ref("users/" + user.uid + "/playing").once("value").then(p => {
-        const currentWorld = p.val();
-        if (!currentWorld || currentWorld === "Ecran d'accueil") {
-          db.ref("users/" + user.uid + "/playing").set("Chargement...");
-        }
-      });
-
+      db.ref("users/" + user.uid + "/playing").set("Connexion au monde");
       checkDisponibility(user);
     });
   </script>
