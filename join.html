@@ -68,15 +68,15 @@
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
 
   <script>
-const firebaseConfig = {
-  apiKey: "AIzaSyBPq6Wfxzq02MfK69BFxHm9_FUjDGTmAcw",
-  authDomain: "kykychat-24c7f.firebaseapp.com",
-  databaseURL: "https://kykychat-24c7f-default-rtdb.firebaseio.com",
-  projectId: "kykychat-24c7f",
-  storageBucket: "kykychat-24c7f.firebasestorage.app",
-  messagingSenderId: "342562811927",
-  appId: "1:342562811927:web:0fed1e1f511c4fddcfec52"
-};
+    const firebaseConfig = {
+      apiKey: "AIzaSyBPq6Wfxzq02MfK69BFxHm9_FUjDGTmAcw",
+      authDomain: "kykychat-24c7f.firebaseapp.com",
+      databaseURL: "https://kykychat-24c7f-default-rtdb.firebaseio.com",
+      projectId: "kykychat-24c7f",
+      storageBucket: "kykychat-24c7f.appspot.com",
+      messagingSenderId: "342562811927",
+      appId: "1:342562811927:web:0fed1e1f511c4fddcfec52"
+    };
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
     const auth = firebase.auth();
@@ -86,6 +86,7 @@ const firebaseConfig = {
     const tipsDiv = document.getElementById("tips");
     const errorDiv = document.getElementById("error");
     const backBtn = document.getElementById("back");
+    const title = document.getElementById("title");
 
     const tipsList = [
       "💡 Astuce : Utilise les portails pour voyager rapidement.",
@@ -103,26 +104,37 @@ const firebaseConfig = {
     }
 
     setInterval(cycleTips, 5000);
-    cycleTips(); // Lancer immédiatement
+    cycleTips();
 
-    // Vérifie disponibilité
-    function checkDisponibility(user) {
+    function showError(msg) {
+      title.textContent = "Connexion échouée.";
+      tipsDiv.textContent = "";
+      errorDiv.textContent = msg;
+      backBtn.style.display = "inline-block";
+    }
+
+    function goBack() {
+      const user = firebase.auth().currentUser;
+      if (user) {
+        db.ref("users/" + user.uid + "/playing").set("Ecran d'accueil");
+      }
+      window.location.href = "index.html";
+    }
+
+    function checkDisponibility(uid) {
       const dispoRef = db.ref("disponibility");
 
       dispoRef.once('value').then(snapshot => {
         let val = snapshot.val();
 
         if (val === null) {
-          // Créer la clé si elle n'existe pas
           dispoRef.set(true);
           val = true;
         }
 
         if (val === true) {
-          // Rediriger après délai
-          setTimeout(() => {
-            window.location.href = "world.html"; // à adapter
-          }, 2000);
+          // Pas de redirection automatique, on reste sur la page.
+          title.textContent = "✅ Monde disponible.";
         } else {
           showError("❌ Erreur de connexion au monde :\n" + val);
         }
@@ -131,31 +143,11 @@ const firebaseConfig = {
       });
     }
 
-    function showError(msg) {
-      document.querySelector("h1").textContent = "Connexion échouée.";
-      tipsDiv.textContent = "";
-      errorDiv.textContent = msg;
-      backBtn.style.display = "inline-block";
-    }
-
-    function goBack() {
-      auth.onAuthStateChanged(user => {
-        if (user) {
-          db.ref("users/" + user.uid + "/playing").set("Ecran d'accueil");
-        }
-        window.location.href = "index.html";
-      });
-    }
-
-    // Auth check et début
     auth.onAuthStateChanged(user => {
-      if (!user) {
-        window.location.href = "index.html";
-        return;
+      if (user) {
+        db.ref("users/" + user.uid + "/playing").set("Connexion au monde");
+        checkDisponibility(user.uid);
       }
-
-      db.ref("users/" + user.uid + "/playing").set("Connexion au monde");
-      checkDisponibility(user);
     });
   </script>
 </body>
