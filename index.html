@@ -276,19 +276,20 @@ function showWorlds(uid) {
       worldList.innerHTML = '';
       Object.entries(data).forEach(([name, world]) => {
         const modeBox = `<div style="display:inline-block; background:#444; color:white; padding:4px 8px; margin-right:5px;">${world.mode}</div>`;
+        const difficultyBox = `<div style="display:inline-block; background:#666; color:white; padding:4px 8px; margin-right:5px;">${world.difficulty}</div>`;
         const uniqueBox = world.unique ? `<div style="display:inline-block; background:gold; color:black; padding:4px 8px;">Unique</div>` : '';
         worldList.innerHTML += `
           <div class="world-item">
             <img class="world-thumb" src="https://i.imgur.com/ZVjToUu.png" />
             <div class="world-info">
               <div class="world-name">${name}</div>
-              <div class="world-type">${modeBox}${uniqueBox}</div>
+              <div class="world-type">${modeBox}${difficultyBox}${uniqueBox}</div>
             </div>
             <div class="world-meta">
               <div>${world.size}</div>
               <div>${world.createdAt}</div>
-              <button onclick="showEditPopup('${name}')">Modifier</button>
-              <button onclick="joinWorld('${name}')">Jouer</button>
+              <button class="btn" onclick="showEditPopup('${name}')">Modifier</button>
+              <button class="btn play" onclick="joinWorld('${name}')">Jouer</button>
             </div>
           </div>
         `;
@@ -305,17 +306,42 @@ function joinWorld(worldName) {
 }
 
 function showEditPopup(worldName) {
-  const popup = document.createElement('div');
-  popup.className = 'popup';
-  popup.innerHTML = `
-    <div class="popup-inner">
-      <h3>Modifier ${worldName}</h3>
-      <button onclick="deleteWorld('${worldName}')">Supprimer</button>
-      <button onclick="cloneWorld('${worldName}')">Cloner</button>
-      <button onclick="closePopup(this)">Annuler</button>
-    </div>
-  `;
-  document.body.appendChild(popup);
+  const user = auth.currentUser;
+  if (!user) return;
+  db.ref('users/' + user.uid + '/worlds/' + worldName).once('value', snap => {
+    const data = snap.val();
+    if (!data) return;
+
+    const popup = document.createElement('div');
+    popup.className = 'popup';
+    popup.innerHTML = `
+      <div class="popup-inner">
+        <h3>Modifier ${worldName}</h3>
+        <label>Mode: <input type="text" id="editMode" value="${data.mode}" /></label><br>
+        <label>Difficulté: <input type="text" id="editDifficulty" value="${data.difficulty}" /></label><br>
+        <label>Unique: <input type="checkbox" id="editUnique" ${data.unique ? 'checked' : ''} /></label><br>
+        <button class="btn" onclick="saveWorldChanges('${worldName}')">Enregistrer</button>
+        <button class="btn" onclick="cloneWorld('${worldName}')">Cloner</button>
+        <button class="btn" onclick="deleteWorld('${worldName}')">Supprimer</button>
+        <button class="btn" onclick="closePopup(this)">Annuler</button>
+      </div>
+    `;
+    document.body.appendChild(popup);
+  });
+}
+
+function saveWorldChanges(worldName) {
+  const user = auth.currentUser;
+  if (!user) return;
+  const updated = {
+    mode: document.getElementById('editMode').value,
+    difficulty: document.getElementById('editDifficulty').value,
+    unique: document.getElementById('editUnique').checked
+  };
+  db.ref('users/' + user.uid + '/worlds/' + worldName).update(updated).then(() => {
+    showWorlds(user.uid);
+    document.querySelector('.popup')?.remove();
+  });
 }
 
 function closePopup(btn) {
@@ -338,7 +364,6 @@ function cloneWorld(worldName) {
     const data = snap.val();
     if (!data) return;
 
-    // Trouve un nouveau nom disponible
     let index = 1;
     const baseName = worldName;
     const tryClone = () => {
@@ -362,14 +387,47 @@ function cloneWorld(worldName) {
   });
 }
 
+// === Gestion des amis ===
+function addFriend(uid, friendPseudo) {
+  db.ref('usernames/' + friendPseudo).once('value', snap => {
+    if (snap.exists()) {
+      const friendUid = snap.val();
+      db.ref('friends/' + uid + '/' + friendUid).set(true);
+      alert('Ami ajouté !');
+    } else {
+      alert('Utilisateur introuvable');
+    }
+  });
+}
+
+function showFriends(uid) {
+  const friendList = document.getElementById('friendList');
+  if (!friendList) return;
+  db.ref('friends/' + uid).on('value', snap => {
+    const data = snap.val();
+    friendList.innerHTML = '';
+    if (!data) return;
+    Object.keys(data).forEach(friendUid => {
+      db.ref('users/' + friendUid).once('value', s => {
+        const d = s.val();
+        const playing = d.playing || 'Hors ligne';
+        const status = playing !== 'Hors ligne' ? '🟢' : '🔴';
+        friendList.innerHTML += `<div>${status} ${d.username} — ${playing}</div>`;
+      });
+    });
+  });
+}
+
 // Authentification + affichage
 auth.onAuthStateChanged(user => {
   if (user) {
     const pseudo = user.email.split('@')[0];
     db.ref('users/' + user.uid).update({ username: pseudo, playing: 'Écran d’accueil' });
+    db.ref('usernames/' + pseudo).set(user.uid);
     db.ref('presence/' + user.uid).set(true);
     db.ref('presence/' + user.uid).onDisconnect().set(false);
     showWorlds(user.uid);
+    showFriends(user.uid);
   } else {
     const pseudo = prompt("Entrez votre pseudo :");
     const email = `${pseudo}@kykycraft.com`;
@@ -377,18 +435,21 @@ auth.onAuthStateChanged(user => {
     auth.signInWithEmailAndPassword(email, password)
       .then(cred => {
         db.ref('users/' + cred.user.uid).update({ username: pseudo, playing: 'Écran d’accueil' });
+        db.ref('usernames/' + pseudo).set(cred.user.uid);
         showWorlds(cred.user.uid);
+        showFriends(cred.user.uid);
       })
       .catch(() => {
         auth.createUserWithEmailAndPassword(email, password)
           .then(cred => {
             db.ref('users/' + cred.user.uid).set({ username: pseudo, playing: 'Écran d’accueil' });
+            db.ref('usernames/' + pseudo).set(cred.user.uid);
             showWorlds(cred.user.uid);
+            showFriends(cred.user.uid);
           });
       });
   }
 });
-
 
   </script>
 </body>
