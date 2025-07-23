@@ -121,28 +121,26 @@
       window.location.href = "index.html";
     }
 
-    function checkDisponibility(user) {
-      const dispoRef = db.ref("disponibility");
+   function checkDisponibility(user) {
+  const dispoRef = db.ref("disponibility");
 
-      dispoRef.once('value').then(snapshot => {
-        let val = snapshot.val();
+  dispoRef.once('value').then(snapshot => {
+    let val = snapshot.val();
 
-        if (val === null) {
-          dispoRef.set(true); // on crée la clé si elle n'existe pas
-          return;
-        }
-
-        if (val === true || val === "true") {
-          // monde dispo = on reste sur cette page (chargement infini avec tips)
-          console.log("✅ Monde disponible. Attente de connexion...");
-        } else {
-          // Monde non dispo → afficher message d'erreur
-          showError("❌ Erreur de connexion au monde :\n" + val);
-        }
-      }).catch(err => {
-        showError("❌ Une erreur est survenue :\n" + err.message);
-      });
+    if (val === null) {
+      dispoRef.set(true);
+      val = true;
     }
+
+    if (val === true || val === "true") {
+    } else {
+      showError("❌ Erreur de connexion au monde :\n" + val);
+    }
+  }).catch(err => {
+    showError("❌ Une erreur est survenue :\n" + err.message);
+  });
+}
+
 
     auth.onAuthStateChanged(user => {
       if (user) {
