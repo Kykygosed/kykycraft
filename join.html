@@ -89,12 +89,12 @@
     const title = document.getElementById("title");
 
     const tipsList = [
-      "💡 Astuce : Utilise les portails pour voyager rapidement.",
-      "💡 Astuce : Les creepers aiment les surprises...",
-      "💡 Astuce : Évite de miner juste sous toi.",
-      "💡 Astuce : L’eau peut sauver ta chute.",
-      "💡 Astuce : Les torches préviennent les apparitions hostiles.",
-      "💡 Astuce : Garde toujours un seau d'eau sur toi !"
+      "💡 Astuce : Pas de spoil ;)",
+      "💡 Astuce : Pas de spoil ;)",
+      "💡 Astuce : Pas de spoil ;)",
+      "💡 Astuce : Pas de spoil ;)",
+      "💡 Astuce : Pas de spoil ;)",
+      "💡 Astuce : Pas de spoil ;)"
     ];
     let tipIndex = 0;
 
@@ -133,8 +133,7 @@
         }
 
         if (val === true) {
-          // Pas de redirection automatique, on reste sur la page.
-          title.textContent = "✅ Monde disponible.";
+          title.textContent = "✅ Monde disponible. Connexion en cours...";
         } else {
           showError("❌ Erreur de connexion au monde :\n" + val);
         }
@@ -143,12 +142,19 @@
       });
     }
 
+    // Attendre que Firebase détecte l'état de connexion
     auth.onAuthStateChanged(user => {
-      if (user) {
-        db.ref("users/" + user.uid + "/playing").set("Connexion au monde");
-        checkDisponibility(user.uid);
+      if (!user) {
+        // Ne pas rediriger immédiatement, attendre action utilisateur
+        title.textContent = "❌ Tu dois être connecté pour rejoindre un monde.";
+        backBtn.style.display = "inline-block";
+        return;
       }
+
+      db.ref("users/" + user.uid + "/playing").set("Connexion au monde");
+      checkDisponibility(user.uid);
     });
   </script>
 </body>
 </html>
+
