@@ -89,12 +89,12 @@
     const title = document.getElementById("title");
 
     const tipsList = [
-      "💡 Astuce : Pas de spoil ;)",
-      "💡 Astuce : Pas de spoil ;)",
-      "💡 Astuce : Pas de spoil ;)",
-      "💡 Astuce : Pas de spoil ;)",
-      "💡 Astuce : Pas de spoil ;)",
-      "💡 Astuce : Pas de spoil ;)"
+      "💡 Astuce : Utilise les portails pour voyager rapidement.",
+      "💡 Astuce : Les creepers aiment les surprises...",
+      "💡 Astuce : Évite de miner juste sous toi.",
+      "💡 Astuce : L’eau peut sauver ta chute.",
+      "💡 Astuce : Les torches préviennent les apparitions hostiles.",
+      "💡 Astuce : Garde toujours un seau d'eau sur toi !"
     ];
     let tipIndex = 0;
 
@@ -121,7 +121,7 @@
       window.location.href = "index.html";
     }
 
-    function checkDisponibility(uid) {
+    function checkDisponibility(user) {
       const dispoRef = db.ref("disponibility");
 
       dispoRef.once('value').then(snapshot => {
@@ -134,6 +134,7 @@
 
         if (val === true) {
           title.textContent = "✅ Monde disponible. Connexion en cours...";
+          // Tu peux ajouter une redirection ici plus tard si tu veux
         } else {
           showError("❌ Erreur de connexion au monde :\n" + val);
         }
@@ -142,17 +143,16 @@
       });
     }
 
-    // Attendre que Firebase détecte l'état de connexion
-    auth.onAuthStateChanged(user => {
-      if (!user) {
-        // Ne pas rediriger immédiatement, attendre action utilisateur
-        title.textContent = "❌ Tu dois être connecté pour rejoindre un monde.";
+    // Attendre que Firebase ait fini de détecter la session
+    firebase.auth().onAuthStateChanged(user => {
+      if (user) {
+        db.ref("users/" + user.uid + "/playing").set("Connexion au monde");
+        checkDisponibility(user);
+      } else {
+        // Pas connecté, mais on NE redirige PAS
+        title.textContent = "⏳ En attente de connexion...";
         backBtn.style.display = "inline-block";
-        return;
       }
-
-      db.ref("users/" + user.uid + "/playing").set("Connexion au monde");
-      checkDisponibility(user.uid);
     });
   </script>
 </body>
