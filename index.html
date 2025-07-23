@@ -210,6 +210,35 @@ body {
     <div id="friendsOffline"></div>
   </div>
 </div>
+<div id="editPopup" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); justify-content:center; align-items:center; z-index:1000;">
+  <div style="background:#222; padding:20px; width:400px; max-width:90%; border:2px solid #555;">
+    <h2 style="margin-bottom:20px;">Modifier le monde</h2>
+    <div id="editWorldName" style="margin-bottom:10px; color:#ccc;"></div>
+
+    <h3>Mode</h3>
+    <select id="editMode" style="width:100%; margin-bottom:10px;">
+      <option value="normal">Normal</option>
+      <option value="triche">Triche</option>
+      <option value="explorateur">Explorateur</option>
+    </select>
+
+    <h3>Difficulté</h3>
+    <select id="editDifficulty" style="width:100%; margin-bottom:10px;">
+      <option value="Facile">Facile</option>
+      <option value="Normale">Normale</option>
+      <option value="Difficile">Difficile</option>
+    </select>
+
+    <label style="display:block; margin-bottom:10px;">
+      <input type="checkbox" id="editUnique"> Monde unique
+    </label>
+
+    <button class="btn" onclick="saveWorldChanges()">💾 Enregistrer</button>
+    <button class="btn" style="background:#888;" onclick="cloneWorld()">🧬 Cloner</button>
+    <button class="btn" style="background:red;" onclick="deleteWorld()">🗑️ Supprimer</button>
+    <button class="btn" style="background:#555;" onclick="closeEditPopup()">❌ Annuler</button>
+  </div>
+</div>
 
 
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
@@ -244,28 +273,33 @@ function showWorlds(uid) {
       worldList.innerHTML = '<img src="noworlds.png" style="width:100%">';
     } else {
       worldList.innerHTML = '';
-      Object.values(data).forEach(world => {
+      Object.entries(data).forEach(([worldName, world]) => {
         const modeBox = `<div style="display:inline-block; background:#444; color:white; padding:4px 8px; margin-right:5px;">${world.mode}</div>`;
         const uniqueBox = world.unique ? `<div style="display:inline-block; background:gold; color:black; padding:4px 8px;">Unique</div>` : '';
-        worldList.innerHTML += `
-          <div class="world-item">
-            <img class="world-thumb" src="https://i.imgur.com/ZVjToUu.png" />
-            <div class="world-info">
-              <div class="world-name">${world.name}</div>
-              <div class="world-type">
-                ${modeBox}${uniqueBox}
-              </div>
-            </div>
-            <div class="world-meta">
-              <div>${world.size}</div>
-              <div>${world.createdAt}</div>
-            </div>
+
+        const worldItem = document.createElement('div');
+        worldItem.className = 'world-item';
+        worldItem.innerHTML = `
+          <img class="world-thumb" src="https://i.imgur.com/ZVjToUu.png" />
+          <div class="world-info">
+            <div class="world-name">${world.name}</div>
+            <div class="world-type">${modeBox}${uniqueBox}</div>
+          </div>
+          <div class="world-meta">
+            <div>${world.size}</div>
+            <div>${world.createdAt}</div>
+          </div>
+          <div style="margin-top: 8px;">
+            <button class="btn" onclick="showEditPopup('${worldName}')">Modifier</button>
+            <button class="btn" onclick="joinWorld('${worldName}')">Jouer</button>
           </div>
         `;
+        worldList.appendChild(worldItem);
       });
     }
   });
 }
+
 
 
 function searchUsers(query) {
@@ -348,6 +382,70 @@ function loadFriends(uid) {
         });
       });
     });
+  });
+}
+
+    let currentWorldName = '';
+
+function showEditPopup(worldName) {
+  currentWorldName = worldName;
+  document.getElementById('editTitle').innerText = 'Modifier "' + worldName + '"';
+  document.getElementById('editPopup').style.display = 'block';
+}
+
+function closeEditPopup() {
+  document.getElementById('editPopup').style.display = 'none';
+  currentWorldName = '';
+}
+
+function deleteWorld() {
+  const user = auth.currentUser;
+  if (!user || !currentWorldName) return;
+
+  if (confirm("Supprimer ce monde ?")) {
+    db.ref('users/' + user.uid + '/worlds/' + currentWorldName).remove().then(() => {
+      closeEditPopup();
+      showWorlds(user.uid);
+    });
+  }
+}
+
+function cloneWorld() {
+  const user = auth.currentUser;
+  if (!user || !currentWorldName) return;
+
+  db.ref('users/' + user.uid + '/worlds/' + currentWorldName).once('value', snap => {
+    const worldData = snap.val();
+    if (!worldData) return;
+
+    let newNameBase = currentWorldName.replace(/\(\d+\)$/, '').trim();
+    let i = 1;
+
+    function tryClone() {
+      const newName = `${newNameBase} (${i})`;
+      db.ref('users/' + user.uid + '/worlds/' + newName).once('value', checkSnap => {
+        if (checkSnap.exists()) {
+          i++;
+          tryClone();
+        } else {
+          worldData.name = newName;
+          db.ref('users/' + user.uid + '/worlds/' + newName).set(worldData).then(() => {
+            closeEditPopup();
+            showWorlds(user.uid);
+          });
+        }
+      });
+    }
+
+    tryClone();
+  });
+}
+
+function joinWorld(worldName) {
+  const user = auth.currentUser;
+  if (!user) return;
+  db.ref('users/' + user.uid + '/playing').set(worldName).then(() => {
+    location.href = 'join.html';
   });
 }
 
