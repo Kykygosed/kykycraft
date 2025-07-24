@@ -268,6 +268,24 @@ function spawnMobs() {
     });
   }
 }
+  function isNightTime() {
+  const hour = new Date().getHours();
+  // entre 17h (17) et 23h (23) ou entre 0h et 8h
+  return (hour >= 17 || hour < 8);
+}
+
+// Modifie ton spawnMobs() pour ne spawn QUE si c'est la nuit :
+function spawnMobsIfNight(playerPosition) {
+  if (!isNightTime()) return; // pas la peine de spawner
+  
+  // Exemple : spawner entre 2 et 3 mobs autour du joueur
+  const mobsToSpawn = 2 + Math.floor(Math.random() * 2); // 2 ou 3
+
+  for (let i = 0; i < mobsToSpawn; i++) {
+    spawnMobNearPlayer(playerPosition);
+  }
+}
+
 function handleDeath() {
   isDead = true;
   document.getElementById("deathScreen").style.display = "flex";
@@ -320,6 +338,14 @@ function handleMovement() {
   if (keys["s"]) player.y += speed;
   if (keys["q"]) player.x -= speed;
   if (keys["d"]) player.x += speed;
+}
+function onPlayerMove(newPosition) {
+  player.position = newPosition;
+  
+  // ... ton code déplacement ...
+
+  // Spawn mobs uniquement si nuit
+  spawnMobsIfNight(newPosition);
 }
 
 let lastTimeUpdate = Date.now();
