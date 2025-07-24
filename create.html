@@ -191,12 +191,12 @@
 
       db.ref('users/' + user.uid + '/worlds/' + name).set(worldData)
         .then(() => {
-          location.href = 'index.html';
+          location.href = 'play.html';
         });
     }
 
     auth.onAuthStateChanged(user => {
-      if (!user) location.href = 'index.html';
+      if (!user) location.href = 'play.html';
     });
   </script>
 </body>
