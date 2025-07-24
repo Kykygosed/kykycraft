@@ -1,51 +1,23 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html>
 <head>
   <meta charset="UTF-8">
-  <title>Partager ma caméra</title>
+  <title>Broadcast</title>
   <style>
-    body {
-      background: #111;
-      color: white;
-      font-family: Arial, sans-serif;
-      padding: 20px;
-    }
-
-    video {
-      width: 100%;
-      max-height: 60vh;
-      background: black;
-      margin-bottom: 10px;
-    }
-
-    select, input, button {
-      padding: 8px;
-      margin: 5px 0;
-      font-size: 16px;
-      width: 100%;
-    }
-
-    .status {
-      margin-top: 10px;
-      color: lightgreen;
-    }
-
-    .error {
-      color: red;
-    }
+    body { font-family: sans-serif; background: #111; color: white; text-align: center; }
+    video { width: 80%; margin-top: 20px; background: black; }
+    select, input, button { margin-top: 10px; padding: 5px; }
   </style>
 </head>
 <body>
-  <h2>🎥 Partage de caméra</h2>
-
-  <video id="video" autoplay playsinline muted></video>
-
+  <h1>Broadcast Camera</h1>
+  <input id="username" placeholder="Your name (unique)" />
+  <br>
   <select id="cameraSelect"></select>
-  <input type="text" id="deviceName" placeholder="Nom de votre appareil (ex: PC-kyky)">
-  <button id="startBtn">🎬 Démarrer</button>
-  <div class="status" id="status">En attente...</div>
+  <br>
+  <button id="startBtn">Start Broadcast</button>
+  <video id="localVideo" autoplay playsinline muted></video>
 
-  <!-- Firebase SDK -->
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 
@@ -62,91 +34,68 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
-    const video = document.getElementById("video");
-    const cameraSelect = document.getElementById("cameraSelect");
-    const startBtn = document.getElementById("startBtn");
-    const deviceNameInput = document.getElementById("deviceName");
-    const status = document.getElementById("status");
+    const video = document.getElementById('localVideo');
+    const select = document.getElementById('cameraSelect');
+    const startBtn = document.getElementById('startBtn');
+    const usernameInput = document.getElementById('username');
 
-    let currentStream = null;
+    let localStream;
+    let pc;
+    const servers = {
+      iceServers: [
+        { urls: 'stun:stun.l.google.com:19302' }
+      ]
+    };
 
-    // 🔍 Liste les caméras disponibles
     async function listCameras() {
-      try {
-        const devices = await navigator.mediaDevices.enumerateDevices();
-        const videoDevices = devices.filter(d => d.kind === "videoinput");
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const cameras = devices.filter(d => d.kind === 'videoinput');
+      select.innerHTML = cameras.map(c => `<option value="${c.deviceId}">${c.label || 'Camera'}</option>`).join('');
+    }
 
-        cameraSelect.innerHTML = "";
-        videoDevices.forEach(device => {
-          const option = document.createElement("option");
-          option.value = device.deviceId;
-          option.textContent = device.label || "Caméra " + (cameraSelect.length + 1);
-          cameraSelect.appendChild(option);
-        });
+    async function startCamera() {
+      if (!select.value) return alert('Select a camera');
+      localStream = await navigator.mediaDevices.getUserMedia({
+        video: { deviceId: { exact: select.value } },
+        audio: false
+      });
+      video.srcObject = localStream;
+    }
 
-        if (videoDevices.length === 0) {
-          status.textContent = "Aucune caméra détectée.";
-          status.classList.add("error");
+    async function startBroadcast() {
+      const name = usernameInput.value.trim();
+      if (!name) return alert('Enter a name');
+
+      const streamRef = db.ref('streams/' + name);
+      await streamRef.remove();
+
+      pc = new RTCPeerConnection(servers);
+      localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+
+      pc.onicecandidate = e => {
+        if (e.candidate) {
+          streamRef.child('candidates').push(JSON.stringify(e.candidate));
         }
-      } catch (err) {
-        status.textContent = "Erreur de détection des caméras.";
-        status.classList.add("error");
-        console.error(err);
-      }
+      };
+
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+      await streamRef.set({ name, offer: JSON.stringify(offer) });
+
+      streamRef.child('answer').on('value', async snapshot => {
+        if (snapshot.exists()) {
+          const answer = JSON.parse(snapshot.val());
+          await pc.setRemoteDescription(new RTCSessionDescription(answer));
+        }
+      });
     }
 
-    // 🎬 Démarre le flux vidéo
-    async function startStream() {
-      if (!deviceNameInput.value.trim()) {
-        alert("Veuillez entrer un nom pour l'appareil.");
-        return;
-      }
+    startBtn.onclick = async () => {
+      await startCamera();
+      await startBroadcast();
+    };
 
-      if (currentStream) {
-        currentStream.getTracks().forEach(t => t.stop());
-      }
-
-      try {
-        const constraints = {
-          video: {
-            deviceId: { exact: cameraSelect.value }
-          },
-          audio: false
-        };
-
-        const stream = await navigator.mediaDevices.getUserMedia(constraints);
-        currentStream = stream;
-        video.srcObject = stream;
-
-        status.textContent = "🎥 Caméra activée.";
-
-        // 🔄 Ping Firebase toutes les 10s
-        const name = deviceNameInput.value.trim();
-        const update = () => {
-          db.ref("cameras/" + name).set({
-            name: name,
-            timestamp: Date.now()
-          });
-        };
-        update();
-        setInterval(update, 10000);
-
-      } catch (err) {
-        console.error("Erreur de démarrage de la caméra :", err);
-        status.textContent = "Erreur : impossible de démarrer la caméra.";
-        status.classList.add("error");
-      }
-    }
-
-    // 📦 Initialisation
     listCameras();
-
-    startBtn.addEventListener("click", () => {
-      startStream();
-    });
-
-    // 🔁 Met à jour les caméras disponibles si on branche une nouvelle
-    navigator.mediaDevices.addEventListener("devicechange", listCameras);
   </script>
 </body>
 </html>
