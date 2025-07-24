@@ -176,13 +176,13 @@
           // On récupère le message d'erreur
           errRef.once('value').then(errSnap => {
             const errMsg = errSnap.val() || "Le monde n'est pas disponible pour le moment.";
-            showError("❌ Erreur de connexion au monde :\n" + errMsg);
+            showError(" Erreur de connexion au monde :\n" + errMsg);
           }).catch(() => {
-            showError("❌ Erreur de connexion au monde :\nLe monde n'est pas disponible pour le moment.");
+            showError(" Erreur de connexion au monde :\nLe monde n'est pas disponible pour le moment.");
           });
         }
       }).catch(err => {
-        showError("❌ Une erreur est survenue :\n" + err.message);
+        showError(" Une erreur est survenue :\n" + err.message);
       });
     });
   </script>
