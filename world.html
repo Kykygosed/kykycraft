@@ -263,7 +263,8 @@ function updateGameTime() {
   const delta = (now - lastTimeUpdate) / 1000;
   lastTimeUpdate = now;
 
-  inGameMinutes += delta * 288; // 1 sec IRL = 4.8 min en jeu
+inGameMinutes += delta * 72; // 20min IRL = 1 jour en jeu
+
 
   if (inGameMinutes >= 1440) {
     inGameMinutes -= 1440;
