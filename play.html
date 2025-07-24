@@ -194,6 +194,7 @@ body {
   <input type="text" placeholder="Rechercher un joueur..." oninput="searchUsers(this.value)">
   <div id="searchResults"></div>
 <button id="btnNewGroup" class="btn" style="margin-top:10px;">+ Nouveau groupe</button>
+<div id="groupsList"></div>
 
   <div class="friend-section online">
     <div class="friend-header">
@@ -546,6 +547,59 @@ document.getElementById('createGroupBtn').addEventListener('click', () => {
       console.error(err);
     });
 });
+function loadGroups() {
+  const uid = auth.currentUser?.uid;
+  if (!uid) return;
+
+  const groupsContainer = document.getElementById('groupsList');
+  groupsContainer.innerHTML = 'Chargement des groupes...';
+
+  // Récupérer tous les groupes où l'utilisateur est membre
+  db.ref('groups').orderByChild('members/' + uid).equalTo(true).once('value', snap => {
+    const groups = snap.val();
+    if (!groups) {
+      groupsContainer.innerHTML = '<i>Aucun groupe trouvé</i>';
+      return;
+    }
+
+    groupsContainer.innerHTML = '';
+    const groupEntries = Object.entries(groups);
+
+    // Pour chaque groupe, récupérer les pseudos des membres
+    const allMemberUids = [];
+    groupEntries.forEach(([groupId, group]) => {
+      allMemberUids.push(...Object.keys(group.members));
+    });
+
+    // Enlever les doublons dans les UIDs
+    const uniqueMemberUids = [...new Set(allMemberUids)];
+
+    // Récupérer les pseudos pour tous les UIDs
+    const promises = uniqueMemberUids.map(uid =>
+      db.ref('users/' + uid + '/username').once('value').then(snap => ({ uid, username: snap.val() || 'Anonyme' }))
+    );
+
+    Promise.all(promises).then(usersData => {
+      // Map uid => username pour accès rapide
+      const uidToUsername = {};
+      usersData.forEach(user => {
+        uidToUsername[user.uid] = user.username;
+      });
+
+      // Construire la liste des groupes avec pseudos concaténés
+      groupEntries.forEach(([groupId, group]) => {
+        const memberUids = Object.keys(group.members);
+        const memberNames = memberUids.map(u => uidToUsername[u] || 'Anonyme');
+        const displayName = memberNames.join(',');
+
+        const div = document.createElement('div');
+        div.textContent = displayName;
+        div.classList.add('groupEntry'); // optionnel : classe CSS pour style
+        groupsContainer.appendChild(div);
+      });
+    });
+  });
+}
 
 
 
