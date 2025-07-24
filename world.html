@@ -400,8 +400,10 @@ function updateGameTime() {
 function addItemToInventory(item) {
   if (!inventory[item]) inventory[item] = 0;
   inventory[item] = Math.min(inventory[item] + 1, maxStack);
+  db.ref(`users/${uid}/worlds/${currentWorld}/inventory`).set(inventory);
   renderInventory();
 }
+
 
 function showMessage(text) {
   const msg = document.createElement("div");
@@ -423,6 +425,8 @@ function showMessage(text) {
 function renderInventory() {
   const grid = document.getElementById("invGrid");
   grid.innerHTML = "";
+
+  const keys = Object.keys(inventory);
   for (let i = 0; i < 27; i++) {
     const slot = document.createElement("div");
     slot.style.width = "40px";
@@ -434,17 +438,15 @@ function renderInventory() {
     slot.style.alignItems = "center";
     slot.style.position = "relative";
 
-    const itemName = Object.keys(inventory)[i];
-    const count = inventory[itemName];
-
-    if (itemName && count > 0) {
+    const itemName = keys[i];
+    if (itemName && inventory[itemName] > 0) {
       const img = document.createElement("img");
       img.src = `${itemName}.png`;
       img.style.width = "30px";
       slot.appendChild(img);
 
       const label = document.createElement("div");
-      label.textContent = count;
+      label.textContent = inventory[itemName];
       label.style.position = "absolute";
       label.style.bottom = "2px";
       label.style.right = "2px";
@@ -456,6 +458,7 @@ function renderInventory() {
     grid.appendChild(slot);
   }
 }
+
 
 function gameLoop() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -550,6 +553,7 @@ auth.onAuthStateChanged(async user => {
   uid = user.uid;
   document.getElementById("loading").style.display = "flex";
 
+  // Monde actuel
   const playingSnap = await db.ref(`users/${uid}/playing`).once("value");
   currentWorld = playingSnap.val();
   if (!currentWorld || currentWorld === "Ecran d'accueil") {
@@ -557,6 +561,7 @@ auth.onAuthStateChanged(async user => {
     return;
   }
 
+  // Coordonnées du joueur
   const coordsSnap = await db.ref(`users/${uid}/worlds/${currentWorld}/playerinfos/coords`).once("value");
   if (coordsSnap.exists()) {
     const val = coordsSnap.val();
@@ -567,17 +572,20 @@ auth.onAuthStateChanged(async user => {
     player.y = 100;
   }
 
+  // Heure en jeu
   const dateSnap = await db.ref(`users/${uid}/worlds/${currentWorld}/date`).once("value");
   if (dateSnap.exists()) {
     const [h, m] = dateSnap.val().split(":").map(Number);
     inGameMinutes = h * 60 + m;
   } else {
-    inGameMinutes = 12 * 60;
+    inGameMinutes = 12 * 60; // midi
   }
 
+  // Jour actuel
   const daySnap = await db.ref(`users/${uid}/worlds/${currentWorld}/day`).once("value");
   if (daySnap.exists()) currentDay = daySnap.val();
 
+  // PV
   const heartsSnap = await db.ref(`users/${uid}/worlds/${currentWorld}/playerinfos/hearts`).once("value");
   if (heartsSnap.exists()) {
     hearts = heartsSnap.val();
@@ -586,13 +594,27 @@ auth.onAuthStateChanged(async user => {
     await db.ref(`users/${uid}/worlds/${currentWorld}/playerinfos/hearts`).set(hearts);
   }
 
+  // Mode unique
   const uniqueSnap = await db.ref(`users/${uid}/worlds/${currentWorld}/unique`).once("value");
   uniqueMode = uniqueSnap.exists() && uniqueSnap.val() === true;
 
+  // ✅ Chargement de l'inventaire
+  const invSnap = await db.ref(`users/${uid}/worlds/${currentWorld}/inventory`).once("value");
+  if (invSnap.exists()) {
+    inventory = invSnap.val();
+  } else {
+    inventory = {};
+  }
+
+  // Chargement des arbres
   await loadOrGenerateTrees();
+
+  // Marquer en ligne
   await db.ref(`presence/${uid}`).set(true);
+
   treePositions = treePositions.map(tree => ({ ...tree, clickCount: 0 }));
   updateHeartsUI();
+  renderInventory();
 
   document.getElementById("loading").style.display = "none";
 
