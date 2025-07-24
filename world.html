@@ -1,183 +1,194 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Monde</title>
-  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet" />
+  <meta charset="UTF-8">
+  <title>World</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
-    body {
-      font-family: 'Press Start 2P', cursive;
+    html, body {
       margin: 0;
+      padding: 0;
       overflow: hidden;
-      background: #000;
-      color: white;
+      background: black;
     }
     #gameCanvas {
       display: block;
-      margin: 0 auto;
-      background-image: url('map.png');
-      background-size: cover;
+    }
+    #loading {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: black;
+      color: white;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
     }
     #coords {
-      position: absolute;
+      position: fixed;
       top: 10px;
       right: 10px;
+      color: white;
+      font-family: 'Press Start 2P', monospace;
       font-size: 12px;
     }
-    #menuBtn, #menuPopup {
-      font-family: 'Press Start 2P', cursive;
-    }
     #menuBtn {
-      position: absolute;
+      position: fixed;
       top: 10px;
       left: 10px;
-      padding: 10px;
-      font-size: 10px;
-      background: #444;
-      border: none;
-      color: white;
-      cursor: pointer;
+      background: white;
+      font-family: 'Press Start 2P';
+      padding: 5px;
+      display: none;
+      z-index: 10;
     }
     #menuPopup {
       position: fixed;
       top: 50%;
       left: 50%;
       transform: translate(-50%, -50%);
-      background: rgba(0,0,0,0.9);
-      border: 2px solid white;
+      background: white;
       padding: 20px;
+      font-family: 'Press Start 2P';
       display: none;
-      z-index: 10;
-      text-align: center;
+      z-index: 10000;
     }
     #menuPopup button {
       display: block;
-      margin: 10px auto;
-      padding: 10px;
-      font-size: 10px;
-      background: #222;
-      color: white;
-      border: none;
-      cursor: pointer;
-    }
-    #loadingScreen {
-      position: fixed;
-      top: 0; left: 0; right: 0; bottom: 0;
-      background: linear-gradient(135deg, #1f1c2c, #928dab);
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      color: white;
-      font-family: 'Press Start 2P', cursive;
-      z-index: 100;
+      margin-top: 10px;
     }
   </style>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js"></script>
 </head>
 <body>
-  <canvas id="gameCanvas" width="800" height="600"></canvas>
-  <div id="coords">X: 0 | Y: 0</div>
+  <div id="loading">Chargement...</div>
   <button id="menuBtn">MENU</button>
+  <div id="coords"></div>
   <div id="menuPopup">
-    <p>Pause</p>
+    <div>Menu</div>
     <button id="resumeBtn">Reprendre</button>
     <button id="quitBtn">Sauvegarder et quitter</button>
   </div>
-  <div id="loadingScreen">
-    <h1>Chargement...</h1>
-  </div>
+  <canvas id="gameCanvas" width="800" height="600"></canvas>
 
-  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
   <script>
-
-const firebaseConfig = {
-  apiKey: "AIzaSyBPq6Wfxzq02MfK69BFxHm9_FUjDGTmAcw",
-  authDomain: "kykychat-24c7f.firebaseapp.com",
-  databaseURL: "https://kykychat-24c7f-default-rtdb.firebaseio.com",
-  projectId: "kykychat-24c7f",
-  storageBucket: "kykychat-24c7f.firebasestorage.app",
-  messagingSenderId: "342562811927",
-  appId: "1:342562811927:web:0fed1e1f511c4fddcfec52"
-};
+    const firebaseConfig = {
+      apiKey: "TON_API_KEY",
+      authDomain: "TON_DOMAINE.firebaseapp.com",
+      databaseURL: "https://TON_DOMAINE.firebaseio.com",
+      projectId: "TON_PROJECT_ID",
+      storageBucket: "TON_DOMAINE.appspot.com",
+      messagingSenderId: "...",
+      appId: "..."
+    };
     firebase.initializeApp(firebaseConfig);
-    const auth = firebase.auth();
     const db = firebase.database();
+    const auth = firebase.auth();
 
-    const canvas = document.getElementById('gameCanvas');
-    const ctx = canvas.getContext('2d');
-    const coordsDisplay = document.getElementById('coords');
-    const menuBtn = document.getElementById('menuBtn');
-    const menuPopup = document.getElementById('menuPopup');
-    const resumeBtn = document.getElementById('resumeBtn');
-    const quitBtn = document.getElementById('quitBtn');
-    const loadingScreen = document.getElementById('loadingScreen');
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
+    const coordsEl = document.getElementById("coords");
+    const menuPopup = document.getElementById("menuPopup");
+    const menuBtn = document.getElementById("menuBtn");
+    const resumeBtn = document.getElementById("resumeBtn");
+    const quitBtn = document.getElementById("quitBtn");
 
-    let x = 100, y = 100;
-    let userId = null;
-    let world = null;
+    const isMobile = /Mobi|Android/i.test(navigator.userAgent);
+    if (isMobile) menuBtn.style.display = "block";
+
+    let player = { x: 100, y: 100, size: 20 };
+    let currentWorld = "";
+    let uid = "";
+    let mapImg = new Image();
+    mapImg.src = "map.png";
 
     auth.onAuthStateChanged(user => {
-      if (!user) return location.href = 'play.html';
-      userId = user.uid;
-      db.ref(`users/${userId}/playing`).once('value').then(snap => {
-        world = snap.val();
-        if (!world || world === "Ecran d'accueil") return location.href = 'play.html';
+      if (!user) return location.href = "index.html";
+      uid = user.uid;
 
-        // Quand tout est prêt, on cache le loading
-        loadingScreen.style.display = 'none';
+      // Chargement du monde
+      db.ref(`users/${uid}/playing`).once("value").then(snap => {
+        currentWorld = snap.val();
+        if (!currentWorld || currentWorld === "Ecran d'accueil") return location.href = "play.html";
 
-        db.ref(`presence/${userId}`).onDisconnect().remove();
-        db.ref(`presence/${userId}`).set(true);
+        // Récupération coords
+        db.ref(`users/${uid}/worlds/${currentWorld}/playerinfos/coords`).once("value").then(c => {
+          if (c.exists()) {
+            const val = c.val();
+            player.x = val.x;
+            player.y = val.y;
+          }
+          document.getElementById("loading").style.display = "none";
+          gameLoop();
+        });
 
-        gameLoop();
+        // Marquer présence en ligne
+        db.ref("presence/" + uid).set(true);
+        window.addEventListener("beforeunload", () => {
+          db.ref("presence/" + uid).set(false);
+        });
       });
     });
 
+    function updateFirebaseCoords() {
+      const x = parseFloat(player.x).toFixed(2);
+      const y = parseFloat(player.y).toFixed(2);
+      db.ref(`users/${uid}/worlds/${currentWorld}/playerinfos/coords`).set({ x, y });
+    }
+
     function gameLoop() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.fillStyle = 'red';
-      ctx.fillRect(x, y, 20, 20);
+      ctx.drawImage(mapImg, 0, 0);
 
-      coordsDisplay.textContent = `X: ${x} | Y: ${y}`;
-      db.ref(`users/${userId}/worlds/${world}/playerinfos/coords`).set({ x, y });
+      ctx.fillStyle = "red";
+      ctx.fillRect(player.x, player.y, player.size, player.size);
+
+      coordsEl.textContent = `X: ${parseFloat(player.x).toFixed(2)} Y: ${parseFloat(player.y).toFixed(2)}`;
+
+      handleMovement();
+      updateFirebaseCoords();
 
       requestAnimationFrame(gameLoop);
     }
 
-    document.addEventListener('keydown', e => {
-      switch (e.key) {
-        case 'z': y -= 5; break;
-        case 's': y += 5; break;
-        case 'q': x -= 5; break;
-        case 'd': x += 5; break;
-        case 'Escape': toggleMenu(); break;
-      }
+    let keys = {};
+    document.addEventListener("keydown", e => {
+      keys[e.key.toLowerCase()] = true;
+      if (e.key === "Escape") menuPopup.style.display = "block";
+    });
+    document.addEventListener("keyup", e => {
+      keys[e.key.toLowerCase()] = false;
     });
 
-    menuBtn.addEventListener('click', toggleMenu);
-    resumeBtn.addEventListener('click', toggleMenu);
-    quitBtn.addEventListener('click', saveAndQuit);
-
-    function toggleMenu() {
-      menuPopup.style.display = menuPopup.style.display === 'block' ? 'none' : 'block';
+    function handleMovement() {
+      if (keys["z"]) player.y -= 2;
+      if (keys["s"]) player.y += 2;
+      if (keys["q"]) player.x -= 2;
+      if (keys["d"]) player.x += 2;
     }
 
-    function saveAndQuit() {
-      const updates = {};
-      updates[`users/${userId}/worlds/${world}/playerinfos/coords`] = { x, y };
-      updates[`users/${userId}/playing`] = "Ecran d'accueil";
-      updates[`presence/${userId}`] = null;
-      db.ref().update(updates).then(() => {
-        location.href = 'play.html';
+    // Mobile menu
+    menuBtn.addEventListener("click", () => {
+      menuPopup.style.display = "block";
+    });
+
+    resumeBtn.addEventListener("click", () => {
+      menuPopup.style.display = "none";
+    });
+
+    quitBtn.addEventListener("click", () => {
+      updateFirebaseCoords();
+      db.ref("users/" + uid + "/playing").set("Ecran d'accueil");
+      db.ref("presence/" + uid).set(false).then(() => {
+        location.href = "play.html";
       });
-    }
-
-    window.addEventListener("beforeunload", () => {
-      db.ref(`presence/${userId}`).remove();
-      db.ref(`users/${userId}/playing`).set("Ecran d'accueil");
     });
   </script>
 </body>
