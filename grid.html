@@ -1,73 +1,74 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html>
 <head>
-  <meta charset="UTF-8">
-  <title>Grille des Caméras</title>
+  <meta charset="UTF-8" />
+  <title>Grid Viewer</title>
   <style>
     body {
+      background: #111;
+      color: white;
+      font-family: sans-serif;
       margin: 0;
-      background: #000;
-      color: #fff;
-      font-family: Arial, sans-serif;
+      padding: 0;
       display: flex;
-      flex-direction: column;
-      align-items: center;
-    }
-
-    .grid {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      grid-template-rows: repeat(2, 1fr);
-      gap: 10px;
-      width: 100vw;
-      height: 100vh;
-      padding: 10px;
-      box-sizing: border-box;
-    }
-
-    .cam-slot {
-      position: relative;
-      background: #222;
-      border: 2px solid #444;
-      border-radius: 6px;
-      overflow: hidden;
-      display: flex;
-      align-items: center;
       justify-content: center;
+      align-items: center;
+      height: 100vh;
     }
-
-    .cam-slot video {
+    #grid {
+      display: grid;
+      grid-template-columns: repeat(2, 320px);
+      grid-template-rows: repeat(2, 240px);
+      gap: 10px;
+      background: #222;
+      padding: 10px;
+      border-radius: 8px;
+    }
+    .cell {
+      background: #333;
+      position: relative;
+      color: #0f0;
+      font-weight: bold;
+      text-align: center;
+      user-select: none;
+      overflow: hidden;
+      border-radius: 6px;
+    }
+    .cell video {
       width: 100%;
       height: 100%;
       object-fit: cover;
+      background: black;
     }
-
     .label {
       position: absolute;
       top: 4px;
-      left: 4px;
-      background: rgba(0,255,0,0.6);
-      padding: 2px 6px;
-      font-size: 12px;
-      font-weight: bold;
-      border-radius: 3px;
+      left: 0;
+      right: 0;
+      font-size: 14px;
+      color: #0f0;
+      background: rgba(0,0,0,0.6);
+      padding: 2px 0;
+      user-select: none;
     }
-
-    .no-data {
-      font-size: 24px;
-      color: #777;
+    .nodata {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100%;
+      font-size: 18px;
+      color: #666;
     }
   </style>
 </head>
 <body>
-  <div class="grid" id="grid"></div>
+  <div id="grid">
+    <!-- 4 cells max for 2x2 -->
+  </div>
 
-  <!-- Firebase SDK -->
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
-
   <script>
-    // ----- Firebase Config -----
     const firebaseConfig = {
       apiKey: "AIzaSyBPq6Wfxzq02MfK69BFxHm9_FUjDGTmAcw",
       authDomain: "kykychat-24c7f.firebaseapp.com",
@@ -77,68 +78,181 @@
       messagingSenderId: "342562811927",
       appId: "1:342562811927:web:0fed1e1f511c4fddcfec52"
     };
-
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
-    const grid = document.getElementById("grid");
-    const MAX_SLOTS = 4; // 2x2 grid
+    const grid = document.getElementById('grid');
+    const MAX_CELLS = 4; // 2x2 grid
 
-    // ----- Fonction pour charger les caméras actives -----
-    async function loadGrid() {
-      const snapshot = await db.ref("cameras").once("value");
-      const cameras = snapshot.val() || {};
-      const now = Date.now();
+    // Store peer connections by broadcaster name
+    const peers = {};
+    // Store video elements by broadcaster name
+    const videos = {};
 
-      // Filtrer caméras actives (ping < 30s)
-      const activeCams = Object.values(cameras)
-        .filter(c => c.timestamp && now - c.timestamp < 30000)
-        .slice(0, MAX_SLOTS);
+    // ICE servers (Google STUN)
+    const servers = {
+      iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+    };
 
-      // Effacer et remplir la grille
-      grid.innerHTML = "";
+    // Create empty grid cells with "NO DATA"
+    function createGridCells() {
+      grid.innerHTML = '';
+      for(let i=0; i<MAX_CELLS; i++) {
+        const cell = document.createElement('div');
+        cell.className = 'cell';
+        cell.dataset.index = i;
 
-      for (let i = 0; i < MAX_SLOTS; i++) {
-        const cam = activeCams[i];
+        const nodata = document.createElement('div');
+        nodata.className = 'nodata';
+        nodata.textContent = 'NO DATA';
 
-        const slot = document.createElement("div");
-        slot.className = "cam-slot";
-
-        if (cam) {
-          // STREAM LOCAL UNIQUEMENT SI DEVICE = LOCALHOST
-          const label = document.createElement("div");
-          label.className = "label";
-          label.textContent = cam.name;
-          slot.appendChild(label);
-
-          const video = document.createElement("video");
-          video.autoplay = true;
-          video.muted = true;
-          video.playsInline = true;
-
-          // Comme on ne peut pas streamer à distance sans WebRTC setup complet,
-          // on utilise un faux flux noir (sinon ça crash)
-          const fakeStream = new MediaStream();
-          video.srcObject = fakeStream;
-          video.style.background = "#000";
-
-          slot.appendChild(video);
-
-        } else {
-          // Case vide
-          const text = document.createElement("div");
-          text.className = "no-data";
-          text.textContent = "NO DATA";
-          slot.appendChild(text);
-        }
-
-        grid.appendChild(slot);
+        cell.appendChild(nodata);
+        grid.appendChild(cell);
       }
     }
 
-    // Auto-refresh toutes les 5 secondes
-    loadGrid();
-    setInterval(loadGrid, 5000);
+    createGridCells();
+
+    // Listen for new streams
+    const streamsRef = db.ref('streams');
+    streamsRef.on('value', snapshot => {
+      const data = snapshot.val() || {};
+      const keys = Object.keys(data);
+
+      // Remove peers no longer present
+      for (const name in peers) {
+        if (!keys.includes(name)) {
+          removePeer(name);
+        }
+      }
+
+      // Connect or update peers
+      keys.slice(0, MAX_CELLS).forEach((name, index) => {
+        if (!peers[name]) {
+          setupPeer(name, data[name], index);
+        }
+      });
+
+      // Update grid empty cells
+      updateEmptyCells(keys.length);
+    });
+
+    function updateEmptyCells(activeCount) {
+      for(let i=0; i<MAX_CELLS; i++) {
+        const cell = grid.children[i];
+        if (i < activeCount) {
+          // Should have a video or label, remove NO DATA
+          const nodata = cell.querySelector('.nodata');
+          if(nodata) nodata.style.display = 'none';
+        } else {
+          // Show NO DATA
+          let nodata = cell.querySelector('.nodata');
+          if (!nodata) {
+            nodata = document.createElement('div');
+            nodata.className = 'nodata';
+            nodata.textContent = 'NO DATA';
+            cell.appendChild(nodata);
+          }
+          nodata.style.display = 'flex';
+          // Remove video & label if any
+          const video = cell.querySelector('video');
+          if(video) {
+            video.pause();
+            video.srcObject = null;
+            cell.removeChild(video);
+          }
+          const label = cell.querySelector('.label');
+          if(label) cell.removeChild(label);
+        }
+      }
+    }
+
+    async function setupPeer(name, streamData, cellIndex) {
+      console.log('Setting up peer for', name);
+      const cell = grid.children[cellIndex];
+
+      // Create video element
+      const video = document.createElement('video');
+      video.autoplay = true;
+      video.playsInline = true;
+      video.muted = false;
+      video.style.background = 'black';
+
+      // Label with name on top
+      const label = document.createElement('div');
+      label.className = 'label';
+      label.textContent = name;
+
+      // Clear cell
+      cell.innerHTML = '';
+      cell.appendChild(label);
+      cell.appendChild(video);
+
+      // Create peer connection
+      const pc = new RTCPeerConnection(servers);
+      peers[name] = pc;
+      videos[name] = video;
+
+      // Handle incoming tracks
+      pc.ontrack = event => {
+        console.log('Received track for', name);
+        video.srcObject = event.streams[0];
+      };
+
+      // Send ICE candidates to broadcaster
+      pc.onicecandidate = e => {
+        if(e.candidate) {
+          const candRef = db.ref(`streams/${name}/viewersCandidates`);
+          candRef.push(JSON.stringify(e.candidate));
+        }
+      };
+
+      // Listen for candidates from broadcaster
+      const candidatesRef = db.ref(`streams/${name}/candidates`);
+      candidatesRef.on('child_added', snapshot => {
+        const cand = JSON.parse(snapshot.val());
+        pc.addIceCandidate(new RTCIceCandidate(cand)).catch(e => {
+          console.warn('Error adding candidate', e);
+        });
+      });
+
+      // Set remote description from offer
+      try {
+        const offer = JSON.parse(streamData.offer);
+        await pc.setRemoteDescription(new RTCSessionDescription(offer));
+
+        // Create answer and send to broadcaster
+        const answer = await pc.createAnswer();
+        await pc.setLocalDescription(answer);
+
+        const answerRef = db.ref(`streams/${name}/answer`);
+        await answerRef.set(JSON.stringify(answer));
+      } catch(e) {
+        console.error('Error setting remote description or creating answer', e);
+      }
+    }
+
+    function removePeer(name) {
+      console.log('Removing peer', name);
+      if (peers[name]) {
+        peers[name].close();
+        delete peers[name];
+      }
+      if (videos[name]) {
+        videos[name].srcObject = null;
+        if (videos[name].parentNode) {
+          videos[name].parentNode.innerHTML = '<div class=\"nodata\">NO DATA</div>';
+        }
+        delete videos[name];
+      }
+      // Also find which cell contained that peer and reset to NO DATA
+      for(let cell of grid.children) {
+        const label = cell.querySelector('.label');
+        if(label && label.textContent === name) {
+          cell.innerHTML = '<div class=\"nodata\">NO DATA</div>';
+        }
+      }
+    }
   </script>
 </body>
 </html>
