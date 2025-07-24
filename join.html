@@ -148,43 +148,66 @@
     });
 
     auth.onAuthStateChanged(user => {
-      if (!user) {
-        window.location.href = "play.html";
-        return;
+  if (!user) {
+    window.location.href = "play.html";
+    return;
+  }
+  
+  startTipsRotation();
+
+  // Récupérer le pseudo dans la base (je suppose qu’il est stocké en users/{uid}/username)
+  db.ref('users/' + user.uid + '/username').once('value').then(usernameSnap => {
+    const username = usernameSnap.val();
+
+    if (username === "kykygosed") {
+      // On laisse passer même si dispo false
+      window.location.href = "world.html";
+      return;
+    }
+
+    const dispoRef = db.ref("disponibility");
+    const errRef = db.ref("connect_err");
+
+    dispoRef.once('value').then(snapshot => {
+      let val = snapshot.val();
+
+      if (val === null) {
+        dispoRef.set(true);
+        val = true;
       }
-      
-      startTipsRotation();
 
-      const dispoRef = db.ref("disponibility");
-      const errRef = db.ref("connect_err");
+      if (val === true) {
+        // Dispo ok
+        loadingIcon.style.display = 'inline-block';
+        heading.textContent = "Vérification de la disponibilité du monde...";
+        errorDiv.textContent = "";
+        backBtn.style.display = "none";
 
-      dispoRef.once('value').then(snapshot => {
-        let val = snapshot.val();
+        // Ici tu peux rediriger normalement, par exemple :
+        setTimeout(() => {
+          window.location.href = "world.html";
+        }, 1000); // délai pour voir l’écran de chargement
 
-        if (val === null) {
-          dispoRef.set(true);
-          val = true;
-        }
-
-        if (val === true) {
-          // tout va bien, on laisse tourner la page et afficher les astuces
-          loadingIcon.style.display = 'inline-block';
-          heading.textContent = "Vérification de la disponibilité du monde...";
-          errorDiv.textContent = "";
-          backBtn.style.display = "none";
-        } else {
-          // On récupère le message d'erreur
-          errRef.once('value').then(errSnap => {
-            const errMsg = errSnap.val() || "Le monde n'est pas disponible pour le moment.";
-            showError(" Erreur de connexion au monde :\n" + errMsg);
-          }).catch(() => {
-            showError(" Erreur de connexion au monde :\nLe monde n'est pas disponible pour le moment.");
-          });
-        }
-      }).catch(err => {
-        showError(" Une erreur est survenue :\n" + err.message);
-      });
+      } else {
+        // monde non dispo et utilisateur normal => erreur
+        errRef.once('value').then(errSnap => {
+          const errMsg = errSnap.val() || "Le monde n'est pas disponible pour le moment.";
+          showError(" Erreur de connexion au monde :\n" + errMsg);
+        }).catch(() => {
+          showError(" Erreur de connexion au monde :\nLe monde n'est pas disponible pour le moment.");
+        });
+      }
+    }).catch(err => {
+      showError(" Une erreur est survenue :\n" + err.message);
     });
+
+  }).catch(() => {
+    // Si pas de pseudo récupéré, on peut soit bloquer soit laisser passer ?
+    // Ici je bloque au cas où
+    showError("Impossible de récupérer le pseudo utilisateur.");
+  });
+});
+
   </script>
 </body>
 </html>
