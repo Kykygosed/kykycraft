@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Caméras Connectées</title>
+  <style>
+    body { background: #111; color: white; font-family: sans-serif; text-align: center; }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(9, 1fr);
+      gap: 4px;
+      padding: 10px;
+    }
+    .grid-item {
+      background: #222;
+      padding: 4px;
+      position: relative;
+    }
+    .name-tag {
+      position: absolute;
+      top: 0;
+      left: 0;
+      background: green;
+      color: white;
+      padding: 2px 4px;
+      font-size: 12px;
+    }
+    video {
+      width: 100%;
+      height: auto;
+    }
+    .no-data {
+      color: red;
+      font-size: 14px;
+      padding: 20px 0;
+    }
+  </style>
+</head>
+<body>
+  <h1>Grille des Caméras</h1>
+  <div class="grid" id="cameraGrid"></div>
+
+  <!-- Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyBPq6Wfxzq02MfK69BFxHm9_FUjDGTmAcw",
+      authDomain: "kykychat-24c7f.firebaseapp.com",
+      databaseURL: "https://kykychat-24c7f-default-rtdb.firebaseio.com",
+      projectId: "kykychat-24c7f",
+      storageBucket: "kykychat-24c7f.appspot.com",
+      messagingSenderId: "342562811927",
+      appId: "1:342562811927:web:0fed1e1f511c4fddcfec52"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    const cameraGrid = document.getElementById('cameraGrid');
+
+    function createCell(name, streamUrl) {
+      const div = document.createElement('div');
+      div.className = 'grid-item';
+      if (streamUrl) {
+        const label = document.createElement('div');
+        label.className = 'name-tag';
+        label.textContent = name;
+        const video = document.createElement('video');
+        video.src = streamUrl;
+        video.autoplay = true;
+        video.playsInline = true;
+        video.muted = true;
+        div.appendChild(label);
+        div.appendChild(video);
+      } else {
+        const label = document.createElement('div');
+        label.className = 'no-data';
+        label.textContent = "NO DATA";
+        div.appendChild(label);
+      }
+      return div;
+    }
+
+    firebase.database().ref('cameras').on('value', snapshot => {
+      const data = snapshot.val() || {};
+      const entries = Object.entries(data);
+      cameraGrid.innerHTML = '';
+      for (let i = 0; i < 81; i++) {
+        const [name, cam] = entries[i] || [null, {}];
+        cameraGrid.appendChild(createCell(name, cam?.streamUrl));
+      }
+    });
+  </script>
+</body>
+</html>
