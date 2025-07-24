@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Connexion / Inscription</title>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet" />
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: 'Press Start 2P', cursive;
+      background: linear-gradient(135deg, #1f1c2c, #928dab);
+      color: white;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+    }
+
+    .auth-container {
+      background-color: rgba(0, 0, 0, 0.8);
+      padding: 30px;
+      border-radius: 10px;
+      max-width: 400px;
+      width: 90%;
+      text-align: center;
+    }
+
+    .tabs {
+      display: flex;
+      margin-bottom: 20px;
+    }
+
+    .tab {
+      flex: 1;
+      padding: 10px;
+      cursor: pointer;
+      background: #333;
+      border: 2px solid #555;
+      transition: background 0.3s;
+    }
+
+    .tab.active {
+      background: #00aa00;
+      color: black;
+    }
+
+    .input-group {
+      margin: 15px 0;
+    }
+
+    input {
+      width: 100%;
+      padding: 10px;
+      font-family: 'Press Start 2P', cursive;
+      font-size: 10px;
+      border: 2px solid #555;
+      background: #222;
+      color: white;
+    }
+
+    button {
+      padding: 10px 20px;
+      margin-top: 15px;
+      font-family: 'Press Start 2P', cursive;
+      font-size: 12px;
+      background: #00aa00;
+      color: black;
+      border: none;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background: #00dd00;
+    }
+
+    .error {
+      color: #ff5555;
+      margin-top: 10px;
+      white-space: pre-wrap;
+    }
+
+    .success {
+      color: #55ff55;
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="auth-container">
+    <div class="tabs">
+      <div class="tab active" id="loginTab">Connexion</div>
+      <div class="tab" id="registerTab">Inscription</div>
+    </div>
+
+    <div id="formContainer">
+      <!-- Formulaire affiché ici dynamiquement -->
+    </div>
+
+    <div id="message" class="error"></div>
+  </div>
+
+  <!-- Firebase scripts -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+
+  <script>
+    // Ta config Firebase
+    const firebaseConfig = {
+      apiKey: "AIzaSyBPq6Wfxzq02MfK69BFxHm9_FUjDGTmAcw",
+      authDomain: "kykychat-24c7f.firebaseapp.com",
+      projectId: "kykychat-24c7f",
+      storageBucket: "kykychat-24c7f.appspot.com",
+      messagingSenderId: "342562811927",
+      appId: "1:342562811927:web:0fed1e1f511c4fddcfec52"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+
+    const loginTab = document.getElementById('loginTab');
+    const registerTab = document.getElementById('registerTab');
+    const formContainer = document.getElementById('formContainer');
+    const message = document.getElementById('message');
+
+    // Fonctions pour chaque formulaire
+    function renderLoginForm() {
+      formContainer.innerHTML = `
+        <div class="input-group">
+          <input type="email" id="loginEmail" placeholder="Email">
+        </div>
+        <div class="input-group">
+          <input type="password" id="loginPassword" placeholder="Mot de passe">
+        </div>
+        <button onclick="login()">Se connecter</button>
+      `;
+    }
+
+    function renderRegisterForm() {
+      formContainer.innerHTML = `
+        <div class="input-group">
+          <input type="email" id="registerEmail" placeholder="Email">
+        </div>
+        <div class="input-group">
+          <input type="password" id="registerPassword" placeholder="Mot de passe">
+        </div>
+        <button onclick="register()">S'inscrire</button>
+      `;
+    }
+
+    // Gestion des onglets
+    loginTab.addEventListener('click', () => {
+      loginTab.classList.add('active');
+      registerTab.classList.remove('active');
+      message.textContent = '';
+      renderLoginForm();
+    });
+
+    registerTab.addEventListener('click', () => {
+      registerTab.classList.add('active');
+      loginTab.classList.remove('active');
+      message.textContent = '';
+      renderRegisterForm();
+    });
+
+    // Login
+    function login() {
+      const email = document.getElementById('loginEmail').value;
+      const password = document.getElementById('loginPassword').value;
+      auth.signInWithEmailAndPassword(email, password)
+        .then(() => {
+          message.className = 'success';
+          message.textContent = 'Connexion réussie !';
+          setTimeout(() => {
+            window.location.href = "index.html";
+          }, 1000);
+        })
+        .catch((error) => {
+          message.className = 'error';
+          message.textContent = "❌ " + error.message;
+        });
+    }
+
+    // Register
+    function register() {
+      const email = document.getElementById('registerEmail').value;
+      const password = document.getElementById('registerPassword').value;
+      auth.createUserWithEmailAndPassword(email, password)
+        .then(() => {
+          message.className = 'success';
+          message.textContent = 'Inscription réussie !';
+          setTimeout(() => {
+            window.location.href = "index.html";
+          }, 1000);
+        })
+        .catch((error) => {
+          message.className = 'error';
+          message.textContent = "❌ " + error.message;
+        });
+    }
+
+    // Afficher formulaire par défaut
+    renderLoginForm();
+  </script>
+
+</body>
+</html>
