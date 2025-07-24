@@ -80,14 +80,14 @@
 
   <script>
     const firebaseConfig = {
-      apiKey: "TON_API_KEY",
-      authDomain: "TON_DOMAINE.firebaseapp.com",
-      databaseURL: "https://TON_DOMAINE.firebaseio.com",
-      projectId: "TON_PROJECT_ID",
-      storageBucket: "TON_DOMAINE.appspot.com",
-      messagingSenderId: "...",
-      appId: "..."
-    };
+  apiKey: "AIzaSyBPq6Wfxzq02MfK69BFxHm9_FUjDGTmAcw",
+  authDomain: "kykychat-24c7f.firebaseapp.com",
+  databaseURL: "https://kykychat-24c7f-default-rtdb.firebaseio.com",
+  projectId: "kykychat-24c7f",
+  storageBucket: "kykychat-24c7f.firebasestorage.app",
+  messagingSenderId: "342562811927",
+  appId: "1:342562811927:web:0fed1e1f511c4fddcfec52"
+};
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
     const auth = firebase.auth();
@@ -104,6 +104,7 @@
     if (isMobile) menuBtn.style.display = "block";
 
     let player = { x: 100, y: 100, size: 20 };
+    let camera = { x: 0, y: 0 };
     let currentWorld = "";
     let uid = "";
     let mapImg = new Image();
@@ -113,12 +114,10 @@
       if (!user) return location.href = "index.html";
       uid = user.uid;
 
-      // Chargement du monde
       db.ref(`users/${uid}/playing`).once("value").then(snap => {
         currentWorld = snap.val();
         if (!currentWorld || currentWorld === "Ecran d'accueil") return location.href = "play.html";
 
-        // Récupération coords
         db.ref(`users/${uid}/worlds/${currentWorld}/playerinfos/coords`).once("value").then(c => {
           if (c.exists()) {
             const val = c.val();
@@ -129,10 +128,10 @@
           gameLoop();
         });
 
-        // Marquer présence en ligne
         db.ref("presence/" + uid).set(true);
         window.addEventListener("beforeunload", () => {
           db.ref("presence/" + uid).set(false);
+          db.ref("users/" + uid + "/playing").set("Ecran d'accueil");
         });
       });
     });
@@ -144,11 +143,17 @@
     }
 
     function gameLoop() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.drawImage(mapImg, 0, 0);
+
+      camera.x = player.x - canvas.width / 2;
+      camera.y = player.y - canvas.height / 2;
+
+      ctx.drawImage(mapImg, -camera.x, -camera.y);
 
       ctx.fillStyle = "red";
-      ctx.fillRect(player.x, player.y, player.size, player.size);
+      ctx.fillRect(player.x - camera.x, player.y - camera.y, player.size, player.size);
 
       coordsEl.textContent = `X: ${parseFloat(player.x).toFixed(2)} Y: ${parseFloat(player.y).toFixed(2)}`;
 
@@ -174,7 +179,6 @@
       if (keys["d"]) player.x += 2;
     }
 
-    // Mobile menu
     menuBtn.addEventListener("click", () => {
       menuPopup.style.display = "block";
     });
