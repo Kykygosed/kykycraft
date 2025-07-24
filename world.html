@@ -112,6 +112,14 @@
   <button id="respawnBtn">Réapparaître</button>
   <button id="exploreBtn">Explorer</button>
   <button id="quitBtnTop">Quitter</button>
+  <!-- Inventaire -->
+<div id="inventory" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%, -50%);
+  background:#222; border:3px solid #00ff00; padding:20px; z-index:1000; font-family:'Press Start 2P'; color:white;">
+  <h3 style="margin-top:0;">Inventaire</h3>
+  <div id="crafting" style="margin-bottom:15px;">Menu de fabrication (bientôt)</div>
+  <div id="invGrid" style="display:grid; grid-template-columns: repeat(9, 40px); gap:5px;"></div>
+</div>
+
 </div>
 
 <script>
@@ -152,6 +160,12 @@ const treeImg = new Image();
 treeImg.src = "tree.png";
 const heartImg = new Image();
 heartImg.src = "heart.png";
+const dropImg = new Image();
+dropImg.src = "tronc.png";
+
+let drops = []; // drops au sol
+let inventory = {}; // Inventaire du joueur : { tronc: 5 }
+const maxStack = 32;
 
 
 const timeDisplay = document.createElement("div");
@@ -254,6 +268,8 @@ async function loadOrGenerateTrees() {
     }
   }
 }
+
+
 let mobs = [];
 const mobSize = 20;
 const mobSpeed = 1;
@@ -381,6 +397,65 @@ function updateGameTime() {
   db.ref(`users/${uid}/worlds/${currentWorld}/date`).set(getGameTimeStr());
   db.ref(`users/${uid}/worlds/${currentWorld}/day`).set(currentDay);
 }
+function addItemToInventory(item) {
+  if (!inventory[item]) inventory[item] = 0;
+  inventory[item] = Math.min(inventory[item] + 1, maxStack);
+  renderInventory();
+}
+
+function showMessage(text) {
+  const msg = document.createElement("div");
+  msg.textContent = text;
+  msg.style.position = "fixed";
+  msg.style.bottom = "10px";
+  msg.style.left = "50%";
+  msg.style.transform = "translateX(-50%)";
+  msg.style.background = "#00ff00";
+  msg.style.color = "black";
+  msg.style.padding = "10px 20px";
+  msg.style.borderRadius = "10px";
+  msg.style.fontFamily = "'Press Start 2P'";
+  msg.style.zIndex = "2000";
+  document.body.appendChild(msg);
+  setTimeout(() => msg.remove(), 3000);
+}
+
+function renderInventory() {
+  const grid = document.getElementById("invGrid");
+  grid.innerHTML = "";
+  for (let i = 0; i < 27; i++) {
+    const slot = document.createElement("div");
+    slot.style.width = "40px";
+    slot.style.height = "40px";
+    slot.style.background = "#444";
+    slot.style.border = "1px solid #00ff00";
+    slot.style.display = "flex";
+    slot.style.justifyContent = "center";
+    slot.style.alignItems = "center";
+    slot.style.position = "relative";
+
+    const itemName = Object.keys(inventory)[i];
+    const count = inventory[itemName];
+
+    if (itemName && count > 0) {
+      const img = document.createElement("img");
+      img.src = `${itemName}.png`;
+      img.style.width = "30px";
+      slot.appendChild(img);
+
+      const label = document.createElement("div");
+      label.textContent = count;
+      label.style.position = "absolute";
+      label.style.bottom = "2px";
+      label.style.right = "2px";
+      label.style.color = "white";
+      label.style.fontSize = "10px";
+      slot.appendChild(label);
+    }
+
+    grid.appendChild(slot);
+  }
+}
 
 function gameLoop() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -407,6 +482,23 @@ function gameLoop() {
       ctx.fillRect(screenX - 16, screenY - 32, 32, 64);
     }
   }
+for (let i = 0; i < drops.length; i++) {
+  const drop = drops[i];
+  const dx = player.x - drop.x;
+  const dy = player.y - drop.y;
+  const dist = Math.sqrt(dx * dx + dy * dy);
+
+  const screenX = canvas.width / 2 + (drop.x - player.x) - 16;
+  const screenY = canvas.height / 2 + (drop.y - player.y) - 16;
+  ctx.drawImage(dropImg, screenX, screenY, 32, 32);
+
+  if (dist < 20) {
+    addItemToInventory("tronc");
+    showMessage("Tronc a été ajouté à votre inventaire !");
+    drops.splice(i, 1);
+    i--;
+  }
+}
 
   drawMobs();
 
@@ -438,6 +530,14 @@ quitBtn.onclick = async () => {
 window.addEventListener("beforeunload", async () => {
   await db.ref(`presence/${uid}`).set(false);
   await db.ref(`users/${uid}/playing`).set("Ecran d'accueil");
+});
+
+document.addEventListener("keydown", e => {
+  if (e.key.toLowerCase() === "e") {
+    const inv = document.getElementById("inventory");
+    inv.style.display = inv.style.display === "none" ? "block" : "none";
+    renderInventory();
+  }
 });
 
   
@@ -491,7 +591,7 @@ auth.onAuthStateChanged(async user => {
 
   await loadOrGenerateTrees();
   await db.ref(`presence/${uid}`).set(true);
-
+  treePositions = treePositions.map(tree => ({ ...tree, clickCount: 0 }));
   updateHeartsUI();
 
   document.getElementById("loading").style.display = "none";
