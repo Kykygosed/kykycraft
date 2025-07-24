@@ -564,16 +564,42 @@ function openGroupChat(groupId, groupName) {
   const messagesDiv = document.getElementById('chatMessages');
   messagesDiv.innerHTML = `<strong>${groupName}</strong><br><br>`;
 
-  db.ref('groups/' + groupId + '/messages').off(); // retire ancien listener
+  // On retire l'ancien listener
+  db.ref('groups/' + groupId + '/messages').off();
 
-  db.ref('groups/' + groupId + '/messages').on('child_added', snap => {
-    const msg = snap.val();
-    db.ref('users/' + msg.sender).once('value', uSnap => {
-      const senderName = uSnap.val()?.username || msg.sender;
-      const div = document.createElement('div');
-      div.textContent = `${senderName}: ${msg.text}`;
-      messagesDiv.appendChild(div);
+  // 🔁 On charge tous les messages d’un coup pour scroller ensuite
+  db.ref('groups/' + groupId + '/messages').once('value', snap => {
+    const messages = snap.val();
+    if (messages) {
+      const entries = Object.entries(messages);
+      let promises = entries.map(([key, msg]) => {
+        return db.ref('users/' + msg.sender).once('value').then(uSnap => {
+          const senderName = uSnap.val()?.username || msg.sender;
+          const div = document.createElement('div');
+          div.textContent = `${senderName}: ${msg.text}`;
+          messagesDiv.appendChild(div);
+        });
+      });
+
+      // ✅ Une fois tous les messages affichés, on scroll en bas
+      Promise.all(promises).then(() => {
+        messagesDiv.scrollTop = messagesDiv.scrollHeight;
+      });
+    } else {
+      // Si aucun message, scroll direct
       messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    }
+
+    // 🎯 Ensuite on écoute les nouveaux messages (live)
+    db.ref('groups/' + groupId + '/messages').on('child_added', snap => {
+      const msg = snap.val();
+      db.ref('users/' + msg.sender).once('value', uSnap => {
+        const senderName = uSnap.val()?.username || msg.sender;
+        const div = document.createElement('div');
+        div.textContent = `${senderName}: ${msg.text}`;
+        messagesDiv.appendChild(div);
+        messagesDiv.scrollTop = messagesDiv.scrollHeight;
+      });
     });
   });
 }
