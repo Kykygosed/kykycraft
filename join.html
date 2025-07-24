@@ -156,7 +156,7 @@
   startTipsRotation();
 
   // Récupérer le pseudo dans la base 
-  db.ref('users/' + user.uid + '/pseudo').once('value').then(usernameSnap => {
+  db.ref('users/' + user.uid + '/username').once('value').then(usernameSnap => {
     const username = usernameSnap.val();
 
     if (username === "kykygosed") {
