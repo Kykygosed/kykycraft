@@ -131,6 +131,9 @@ let uid = "";
 let currentWorld = "";
 let inGameMinutes = 0;
 let currentDay = 1;
+let treePositions = [];
+const treeImg = new Image();
+treeImg.src = "tree.png";
 
 const timeDisplay = document.createElement("div");
 timeDisplay.style.position = "fixed";
@@ -172,7 +175,6 @@ function drawInfiniteMap() {
   }
 }
 
-// Get hour in 24h format from inGameMinutes
 function getGameTimeStr() {
   const hours = Math.floor(inGameMinutes / 60) % 24;
   const minutes = Math.floor(inGameMinutes % 60);
@@ -183,34 +185,28 @@ function updateLighting() {
   const hour = Math.floor(inGameMinutes / 60) % 24;
   let opacity = 0;
 
-  // Nuit profonde
   if (hour >= 21 || hour < 5) {
     opacity = 0.5;
-  }
-  // Crépuscule ou aube
-  else if (hour >= 18 && hour < 21) {
+  } else if (hour >= 18 && hour < 21) {
     opacity = (hour - 18) / 3 * 0.5;
-  }
-  else if (hour >= 5 && hour < 8) {
+  } else if (hour >= 5 && hour < 8) {
     opacity = (1 - (hour - 5) / 3) * 0.5;
   }
 
   ctx.fillStyle = `rgba(0,0,0,${opacity.toFixed(2)})`;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  return opacity;
 }
 
 auth.onAuthStateChanged(async user => {
   if (!user) return location.href = "index.html";
   uid = user.uid;
-
   document.getElementById("loading").style.display = "flex";
 
   const playingSnap = await db.ref(`users/${uid}/playing`).once("value");
   currentWorld = playingSnap.val();
-  if (!currentWorld || currentWorld === "Ecran d'accueil") {
-    location.href = "play.html";
-    return;
-  }
+  if (!currentWorld || currentWorld === "Ecran d'accueil") return location.href = "play.html";
 
   const coordsSnap = await db.ref(`users/${uid}/worlds/${currentWorld}/playerinfos/coords`).once("value");
   if (coordsSnap.exists()) {
@@ -228,10 +224,34 @@ auth.onAuthStateChanged(async user => {
   const daySnap = await db.ref(`users/${uid}/worlds/${currentWorld}/day`).once("value");
   if (daySnap.exists()) currentDay = daySnap.val();
 
+  await loadOrGenerateTrees();
   await db.ref(`presence/${uid}`).set(true);
+
   document.getElementById("loading").style.display = "none";
   requestAnimationFrame(gameLoop);
 });
+
+async function loadOrGenerateTrees() {
+  const treesRef = db.ref(`users/${uid}/worlds/${currentWorld}/worldinfo/trees`);
+  const snap = await treesRef.once("value");
+
+  if (snap.exists()) {
+    treePositions = Object.values(snap.val());
+  } else {
+    const positions = [];
+    const baseX = player.x;
+    const baseY = player.y;
+    for (let i = 0; i < 60; i++) {
+      const x = baseX + Math.random() * 1000 - 500;
+      const y = baseY + Math.random() * 1000 - 500;
+      positions.push({ x: Math.round(x), y: Math.round(y) });
+    }
+    treePositions = positions;
+    for (let i = 0; i < positions.length; i++) {
+      await treesRef.child(`${positions[i].x}_${positions[i].y}`).set(positions[i]);
+    }
+  }
+}
 
 function updateFirebaseCoords() {
   db.ref(`users/${uid}/worlds/${currentWorld}/playerinfos/coords`).set({
@@ -263,8 +283,7 @@ function updateGameTime() {
   const delta = (now - lastTimeUpdate) / 1000;
   lastTimeUpdate = now;
 
-inGameMinutes += delta * 0.4; // 20min IRL = 1 jour en jeu
-
+  inGameMinutes += delta * 0.24; // 60 min IRL = 1 jour
 
   if (inGameMinutes >= 1440) {
     inGameMinutes -= 1440;
@@ -289,7 +308,17 @@ function gameLoop() {
   ctx.fillStyle = "red";
   ctx.fillRect(playerScreenX, playerScreenY, player.size, player.size);
 
-  updateLighting();
+  let opacity = updateLighting();
+
+  for (const tree of treePositions) {
+    const screenX = canvas.width / 2 + (tree.x - player.x);
+    const screenY = canvas.height / 2 + (tree.y - player.y);
+    ctx.drawImage(treeImg, screenX - 16, screenY - 32, 32, 64);
+    if (opacity > 0) {
+      ctx.fillStyle = `rgba(0,0,0,${opacity.toFixed(2)})`;
+      ctx.fillRect(screenX - 16, screenY - 32, 32, 64);
+    }
+  }
 
   coordsEl.textContent = `X: ${player.x.toFixed(2)} Y: ${player.y.toFixed(2)}`;
   timeDisplay.textContent = `Jour ${currentDay} - ${getGameTimeStr()}`;
@@ -297,7 +326,6 @@ function gameLoop() {
   requestAnimationFrame(gameLoop);
 }
 
-// Menu
 function openMenu() {
   menuPopup.style.display = "block";
   menuBtn.style.display = "none";
@@ -321,6 +349,7 @@ window.addEventListener("beforeunload", async () => {
   await db.ref(`presence/${uid}`).set(false);
   await db.ref(`users/${uid}/playing`).set("Ecran d'accueil");
 });
+
 </script>
 
 </body>
