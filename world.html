@@ -371,7 +371,7 @@ function updateGameTime() {
   const delta = (now - lastTimeUpdate) / 1000;
   lastTimeUpdate = now;
 
-  inGameMinutes += delta * 0.24; // 60 min IRL = 1 jour
+  inGameMinutes += delta * 1; // 60 min IRL = 1 jour
 
   if (inGameMinutes >= 1440) {
     inGameMinutes -= 1440;
