@@ -1,29 +1,23 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
   <title>World</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
     html, body {
-      margin: 0;
-      padding: 0;
-      overflow: hidden;
-      background: black;
+      margin: 0; padding: 0; overflow: hidden; background: black;
     }
     #gameCanvas {
       display: block;
     }
     #loading {
       position: fixed;
-      top: 0;
-      left: 0;
-      width: 100vw;
-      height: 100vh;
+      top: 0; left: 0; width: 100vw; height: 100vh;
       background: black;
       color: white;
       font-family: 'Press Start 2P', monospace;
-      font-size: 24px;
+      font-size: 32px;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -31,26 +25,25 @@
     }
     #coords {
       position: fixed;
-      top: 10px;
-      right: 10px;
+      top: 10px; right: 10px;
       color: white;
       font-family: 'Press Start 2P', monospace;
       font-size: 12px;
+      z-index: 10;
     }
     #menuBtn {
       position: fixed;
-      top: 10px;
-      left: 10px;
+      top: 10px; left: 10px;
       background: white;
       font-family: 'Press Start 2P';
       padding: 5px;
       display: none;
       z-index: 10;
+      cursor: pointer;
     }
     #menuPopup {
       position: fixed;
-      top: 50%;
-      left: 50%;
+      top: 50%; left: 50%;
       transform: translate(-50%, -50%);
       background: white;
       padding: 20px;
@@ -61,14 +54,17 @@
     #menuPopup button {
       display: block;
       margin-top: 10px;
+      cursor: pointer;
     }
   </style>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 
+  <!-- Firebase compat -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 </head>
 <body>
+
   <div id="loading">Chargement...</div>
   <button id="menuBtn">MENU</button>
   <div id="coords"></div>
@@ -77,18 +73,19 @@
     <button id="resumeBtn">Reprendre</button>
     <button id="quitBtn">Sauvegarder et quitter</button>
   </div>
+
   <canvas id="gameCanvas" width="800" height="600"></canvas>
 
   <script>
     const firebaseConfig = {
-  apiKey: "AIzaSyBPq6Wfxzq02MfK69BFxHm9_FUjDGTmAcw",
-  authDomain: "kykychat-24c7f.firebaseapp.com",
-  databaseURL: "https://kykychat-24c7f-default-rtdb.firebaseio.com",
-  projectId: "kykychat-24c7f",
-  storageBucket: "kykychat-24c7f.firebasestorage.app",
-  messagingSenderId: "342562811927",
-  appId: "1:342562811927:web:0fed1e1f511c4fddcfec52"
-};
+      apiKey: "AIzaSyBPq6Wfxzq02MfK69BFxHm9_FUjDGTmAcw",
+      authDomain: "kykychat-24c7f.firebaseapp.com",
+      databaseURL: "https://kykychat-24c7f-default-rtdb.firebaseio.com",
+      projectId: "kykychat-24c7f",
+      storageBucket: "kykychat-24c7f.firebasestorage.app",
+      messagingSenderId: "342562811927",
+      appId: "1:342562811927:web:0fed1e1f511c4fddcfec52"
+    };
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
     const auth = firebase.auth();
@@ -108,55 +105,83 @@
     let camera = { x: 0, y: 0 };
     let currentWorld = "";
     let uid = "";
-    let mapImg = new Image();
+
+    const mapImg = new Image();
     mapImg.src = "map.png";
 
-    auth.onAuthStateChanged(user => {
+    // Fonction pour dessiner une image en tiles infinies
+    function drawInfiniteMap() {
+      const pattern = ctx.createPattern(mapImg, 'repeat');
+      ctx.fillStyle = pattern;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
+
+    // Charger le monde, récupérer coords, gérer présence et loading
+    auth.onAuthStateChanged(async user => {
       if (!user) return location.href = "index.html";
       uid = user.uid;
 
-      db.ref(`users/${uid}/playing`).once("value").then(snap => {
-        currentWorld = snap.val();
-        if (!currentWorld || currentWorld === "Ecran d'accueil") return location.href = "play.html";
+      // On affiche le loading tant que tout n'est pas prêt
+      document.getElementById("loading").style.display = "flex";
 
-        db.ref(`users/${uid}/worlds/${currentWorld}/playerinfos/coords`).once("value").then(c => {
-          if (c.exists()) {
-            const val = c.val();
-            player.x = val.x;
-            player.y = val.y;
-          }
-          document.getElementById("loading").style.display = "none";
-          gameLoop();
-        });
+      const playingSnap = await db.ref(`users/${uid}/playing`).once("value");
+      currentWorld = playingSnap.val();
 
-        db.ref("presence/" + uid).set(true);
-        window.addEventListener("beforeunload", () => {
-          db.ref("presence/" + uid).set(false);
-          db.ref("users/" + uid + "/playing").set("Ecran d'accueil");
-        });
-      });
+      if (!currentWorld || currentWorld === "Ecran d'accueil") {
+        location.href = "play.html";
+        return;
+      }
+
+      // Charger coords sauvegardées
+      const coordsSnap = await db.ref(`users/${uid}/worlds/${currentWorld}/playerinfos/coords`).once("value");
+      if (coordsSnap.exists()) {
+        const val = coordsSnap.val();
+        player.x = parseFloat(val.x) || 100;
+        player.y = parseFloat(val.y) || 100;
+      }
+
+      // Mettre la présence à true dès qu'on entre dans le monde
+      await db.ref(`presence/${uid}`).set(true);
+
+      // Retirer le loading
+      document.getElementById("loading").style.display = "none";
+
+      // Lancer la boucle de jeu
+      requestAnimationFrame(gameLoop);
     });
 
+    // Met à jour les coordonnées dans la DB (2 décimales)
     function updateFirebaseCoords() {
-      const x = parseFloat(player.x).toFixed(2);
-      const y = parseFloat(player.y).toFixed(2);
+      const x = player.x.toFixed(2);
+      const y = player.y.toFixed(2);
       db.ref(`users/${uid}/worlds/${currentWorld}/playerinfos/coords`).set({ x, y });
     }
 
+    // Boucle principale du jeu
     function gameLoop() {
+      // Adapter la taille du canvas à la fenêtre
       canvas.width = window.innerWidth;
       canvas.height = window.innerHeight;
+
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+      // Calcul caméra pour centrer sur le joueur
       camera.x = player.x - canvas.width / 2;
       camera.y = player.y - canvas.height / 2;
 
-      ctx.drawImage(mapImg, -camera.x, -camera.y);
+      // Dessiner la map répétée infiniment en décalant selon la caméra
+      // Pour simuler le déplacement on translate et dessine un rectangle rempli par le pattern
+      ctx.save();
+      ctx.translate(-camera.x, -camera.y);
+      drawInfiniteMap();
+      ctx.restore();
 
+      // Dessiner le joueur
       ctx.fillStyle = "red";
       ctx.fillRect(player.x - camera.x, player.y - camera.y, player.size, player.size);
 
-      coordsEl.textContent = `X: ${parseFloat(player.x).toFixed(2)} Y: ${parseFloat(player.y).toFixed(2)}`;
+      // Afficher les coordonnées
+      coordsEl.textContent = `X: ${player.x.toFixed(2)} Y: ${player.y.toFixed(2)}`;
 
       handleMovement();
       updateFirebaseCoords();
@@ -164,6 +189,7 @@
       requestAnimationFrame(gameLoop);
     }
 
+    // Gestion des touches pour déplacer le joueur
     let keys = {};
     document.addEventListener("keydown", e => {
       keys[e.key.toLowerCase()] = true;
@@ -188,12 +214,17 @@
       menuPopup.style.display = "none";
     });
 
-    quitBtn.addEventListener("click", () => {
+    quitBtn.addEventListener("click", async () => {
       updateFirebaseCoords();
-      db.ref("users/" + uid + "/playing").set("Ecran d'accueil");
-      db.ref("presence/" + uid).set(false).then(() => {
-        location.href = "play.html";
-      });
+      await db.ref(`users/${uid}/playing`).set("Ecran d'accueil");
+      await db.ref(`presence/${uid}`).set(false);
+      location.href = "play.html";
+    });
+
+    // Quand on quitte la page, on met la présence à false et playing = Ecran d'accueil
+    window.addEventListener("beforeunload", async () => {
+      await db.ref(`presence/${uid}`).set(false);
+      await db.ref(`users/${uid}/playing`).set("Ecran d'accueil");
     });
   </script>
 </body>
