@@ -193,7 +193,6 @@ body {
 <div id="friends" class="content" style="display:none">
   <input type="text" placeholder="Rechercher un joueur..." oninput="searchUsers(this.value)">
   <div id="searchResults"></div>
-  <button class="btn" style="margin-top:10px;" onclick="openGroupModal()">+ Nouveau groupe</button>
 
   <div class="friend-section online">
     <div class="friend-header">
@@ -210,12 +209,6 @@ body {
     </div>
     <div id="friendsOffline"></div>
   </div>
-  <div id="groupList" style="margin-top:20px;"></div>
-<div id="groupChat" style="margin-top:10px; display:none;">
-  <div id="chatMessages" style="background:#111; height:200px; overflow-y:auto; padding:10px; border:2px solid #333;"></div>
-  <input id="chatInput" type="text" placeholder="Message..." style="width:100%; margin-top:5px; padding:10px;" onkeydown="if(event.key==='Enter') sendGroupMessage()">
-</div>
-
 </div>
 
 <div id="pseudoModal" style="display:none; justify-content:center; align-items:center; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.8); z-index:9999;">
@@ -224,16 +217,6 @@ body {
     <input id="chosenPseudo" type="text" placeholder="Ton pseudo..." style="font-family:'Press Start 2P'; width:100%; padding:10px; margin-bottom:10px;">
     <button onclick="savePseudo()" style="padding:10px 20px; background:green; border:none; color:white; cursor:pointer; font-family:'Press Start 2P';">Valider</button>
     <div id="pseudoError" style="color:red; margin-top:10px; font-size:10px;"></div>
-  </div>
-</div>
-<div id="groupModal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.8); justify-content:center; align-items:center; z-index:9999;">
-  <div style="background:#222; padding:20px; border:4px solid #555; width:90%; max-width:500px;">
-    <h2 style="font-size:12px;">Créer un groupe</h2>
-    <input id="groupName" type="text" placeholder="Nom du groupe" style="width:100%; margin-bottom:10px; padding:10px;">
-    <div id="friendSelection" style="max-height:200px; overflow-y:auto; margin-bottom:10px;"></div>
-    <button class="btn" onclick="createGroup()">Créer le groupe</button>
-    <button class="btn" style="background:#777; margin-left:10px;" onclick="closeGroupModal()">Annuler</button>
-    <div id="groupError" style="color:red; margin-top:10px; font-size:10px;"></div>
   </div>
 </div>
 
@@ -459,189 +442,6 @@ const presenceListener = pSnap => {
   });
 }
 
-function openGroupModal() {
-  document.getElementById('groupModal').style.display = 'flex';
-  const container = document.getElementById('friendSelection');
-  container.innerHTML = '';
-
-  const user = auth.currentUser;
-  if (!user) return;
-
-  db.ref('friends/' + user.uid).once('value', snap => {
-    const friends = snap.val();
-    if (!friends) return;
-
-    Object.keys(friends).forEach(fid => {
-      db.ref('users/' + fid).once('value', uSnap => {
-        const data = uSnap.val();
-        const username = data?.username || fid;
-
-        const label = document.createElement('label');
-        label.style.display = "block";
-        label.innerHTML = `
-          <input type="checkbox" value="${fid}" />
-          ${username}
-        `;
-        container.appendChild(label);
-      });
-    });
-  });
-}
-
-function closeGroupModal() {
-  document.getElementById('groupModal').style.display = 'none';
-  document.getElementById('groupError').textContent = '';
-}
-
-function createGroup() {
-  const name = document.getElementById('groupName').value.trim();
-  const error = document.getElementById('groupError');
-  const user = auth.currentUser;
-  if (!name || name.length < 3) {
-    error.textContent = "Nom trop court.";
-    return;
-  }
-
-  const checkboxes = document.querySelectorAll('#friendSelection input[type=checkbox]');
-  const members = [user.uid];
-
-  checkboxes.forEach(cb => {
-    if (cb.checked) members.push(cb.value);
-  });
-
-  if (members.length < 2) {
-    error.textContent = "Ajoute au moins un ami.";
-    return;
-  }
-
-  const groupRef = db.ref('groups').push();
-  const groupId = groupRef.key;
-
-  const updates = {};
-  updates[`groups/${groupId}`] = {
-    name: name,
-    members: members.reduce((obj, uid) => (obj[uid] = true, obj)),
-    messages: {}
-  };
-
-  members.forEach(uid => {
-    updates[`users/${uid}/groups/${groupId}`] = true;
-  });
-
-  db.ref().update(updates).then(() => {
-    closeGroupModal();
-    loadGroups(user.uid);
-  });
-}
-
-function loadGroups(uid) {
-  const groupList = document.getElementById('groupList');
-  groupList.innerHTML = '';
-
-  db.ref('users/' + uid + '/groups').once('value', snap => {
-    const groups = snap.val();
-    if (!groups) return;
-
-    Object.keys(groups).forEach(groupId => {
-      db.ref('groups/' + groupId).once('value', gSnap => {
-        const group = gSnap.val();
-        const div = document.createElement('div');
-        div.className = "friend";
-        div.style.cursor = "pointer";
-        div.textContent = group.name;
-        div.onclick = () => openGroupChat(groupId, group.name);
-        groupList.appendChild(div);
-      });
-    });
-  });
-}
-
-let currentGroupId = null;
-
-function openGroupChat(groupId, groupName) {
-  currentGroupId = groupId;
-  document.getElementById('groupChat').style.display = 'block';
-  const messagesDiv = document.getElementById('chatMessages');
-  messagesDiv.innerHTML = `<strong>${groupName}</strong><br><br>`;
-
-  // On retire l'ancien listener
-  db.ref('groups/' + groupId + '/messages').off();
-
-  // 🔁 On charge tous les messages d’un coup pour scroller ensuite
-  db.ref('groups/' + groupId + '/messages').once('value', snap => {
-    const messages = snap.val();
-    if (messages) {
-      const entries = Object.entries(messages);
-      let promises = entries.map(([key, msg]) => {
-        return db.ref('users/' + msg.sender).once('value').then(uSnap => {
-          const senderName = uSnap.val()?.username || msg.sender;
-          const div = document.createElement('div');
-          div.textContent = `${senderName}: ${msg.text}`;
-          messagesDiv.appendChild(div);
-        });
-      });
-
-      // ✅ Une fois tous les messages affichés, on scroll en bas
-      Promise.all(promises).then(() => {
-        messagesDiv.scrollTop = messagesDiv.scrollHeight;
-      });
-    } else {
-      // Si aucun message, scroll direct
-      messagesDiv.scrollTop = messagesDiv.scrollHeight;
-    }
-
-    // 🎯 Ensuite on écoute les nouveaux messages (live)
-    db.ref('groups/' + groupId + '/messages').on('child_added', snap => {
-      const msg = snap.val();
-      db.ref('users/' + msg.sender).once('value', uSnap => {
-        const senderName = uSnap.val()?.username || msg.sender;
-        const div = document.createElement('div');
-        div.textContent = `${senderName}: ${msg.text}`;
-        messagesDiv.appendChild(div);
-        messagesDiv.scrollTop = messagesDiv.scrollHeight;
-      });
-    });
-  });
-}
-
-function loadMessages(groupId) {
-  const messagesDiv = document.getElementById('chatMessages');
-  messagesDiv.innerHTML = ''; // Vide avant ajout
-
-  db.ref('groups/' + groupId + '/messages')
-    .orderByChild('timestamp')
-    .once('value')
-    .then(snapshot => {
-      const messages = snapshot.val();
-      if (!messages) return;
-
-      Object.values(messages).forEach(msg => {
-        const div = document.createElement('div');
-        div.textContent = msg.sender + ': ' + msg.text;
-        messagesDiv.appendChild(div);
-      });
-
-      messagesDiv.scrollTop = messagesDiv.scrollHeight; // scroll en bas
-    });
-}
-
-
-function sendGroupMessage() {
-  const input = document.getElementById('chatInput');
-  const text = input.value.trim();
-  const user = auth.currentUser;
-  if (!text || !currentGroupId || !user) return;
-
-  const message = {
-    sender: user.uid,
-    text: text,
-    timestamp: Date.now()
-  };
-
-  db.ref(`groups/${currentGroupId}/messages`).push(message);
-  input.value = '';
-}
-
 
 
 
@@ -657,7 +457,6 @@ auth.onAuthStateChanged(user => {
       } else {
         showWorlds(user.uid);
         loadFriends(user.uid);
-        loadGroups(user.uid);
         db.ref('users/' + user.uid + '/playing').set("Écran d’accueil");
         db.ref('presence/' + user.uid).set(true);
         db.ref('presence/' + user.uid).onDisconnect().set(false);
