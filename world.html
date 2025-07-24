@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Monde</title>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet" />
+  <style>
+    body {
+      font-family: 'Press Start 2P', cursive;
+      margin: 0;
+      overflow: hidden;
+      background: #000;
+      color: white;
+    }
+    #gameCanvas {
+      display: block;
+      margin: 0 auto;
+      background-image: url('map.png');
+      background-size: cover;
+    }
+    #coords {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      font-size: 12px;
+    }
+    #menuBtn, #menuPopup {
+      font-family: 'Press Start 2P', cursive;
+    }
+    #menuBtn {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      padding: 10px;
+      font-size: 10px;
+      background: #444;
+      border: none;
+      color: white;
+      cursor: pointer;
+    }
+    #menuPopup {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(0,0,0,0.9);
+      border: 2px solid white;
+      padding: 20px;
+      display: none;
+      z-index: 10;
+      text-align: center;
+    }
+    #menuPopup button {
+      display: block;
+      margin: 10px auto;
+      padding: 10px;
+      font-size: 10px;
+      background: #222;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+    #loadingScreen {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: linear-gradient(135deg, #1f1c2c, #928dab);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-family: 'Press Start 2P', cursive;
+      z-index: 100;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="gameCanvas" width="800" height="600"></canvas>
+  <div id="coords">X: 0 | Y: 0</div>
+  <button id="menuBtn">MENU</button>
+  <div id="menuPopup">
+    <p>Pause</p>
+    <button id="resumeBtn">Reprendre</button>
+    <button id="quitBtn">Sauvegarder et quitter</button>
+  </div>
+  <div id="loadingScreen">
+    <h1>Chargement...</h1>
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+  <script>
+    const firebaseConfig = { /* ... même config ... */ };
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.database();
+
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const coordsDisplay = document.getElementById('coords');
+    const menuBtn = document.getElementById('menuBtn');
+    const menuPopup = document.getElementById('menuPopup');
+    const resumeBtn = document.getElementById('resumeBtn');
+    const quitBtn = document.getElementById('quitBtn');
+    const loadingScreen = document.getElementById('loadingScreen');
+
+    let x = 100, y = 100;
+    let userId = null;
+    let world = null;
+
+    auth.onAuthStateChanged(user => {
+      if (!user) return location.href = 'play.html';
+      userId = user.uid;
+      db.ref(`users/${userId}/playing`).once('value').then(snap => {
+        world = snap.val();
+        if (!world || world === "Ecran d'accueil") return location.href = 'play.html';
+
+        // Quand tout est prêt, on cache le loading
+        loadingScreen.style.display = 'none';
+
+        db.ref(`presence/${userId}`).onDisconnect().remove();
+        db.ref(`presence/${userId}`).set(true);
+
+        gameLoop();
+      });
+    });
+
+    function gameLoop() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = 'red';
+      ctx.fillRect(x, y, 20, 20);
+
+      coordsDisplay.textContent = `X: ${x} | Y: ${y}`;
+      db.ref(`users/${userId}/worlds/${world}/playerinfos/coords`).set({ x, y });
+
+      requestAnimationFrame(gameLoop);
+    }
+
+    document.addEventListener('keydown', e => {
+      switch (e.key) {
+        case 'z': y -= 5; break;
+        case 's': y += 5; break;
+        case 'q': x -= 5; break;
+        case 'd': x += 5; break;
+        case 'Escape': toggleMenu(); break;
+      }
+    });
+
+    menuBtn.addEventListener('click', toggleMenu);
+    resumeBtn.addEventListener('click', toggleMenu);
+    quitBtn.addEventListener('click', saveAndQuit);
+
+    function toggleMenu() {
+      menuPopup.style.display = menuPopup.style.display === 'block' ? 'none' : 'block';
+    }
+
+    function saveAndQuit() {
+      const updates = {};
+      updates[`users/${userId}/worlds/${world}/playerinfos/coords`] = { x, y };
+      updates[`users/${userId}/playing`] = "Ecran d'accueil";
+      updates[`presence/${userId}`] = null;
+      db.ref().update(updates).then(() => {
+        location.href = 'play.html';
+      });
+    }
+
+    window.addEventListener("beforeunload", () => {
+      db.ref(`presence/${userId}`).remove();
+      db.ref(`users/${userId}/playing`).set("Ecran d'accueil");
+    });
+  </script>
+</body>
+</html>
