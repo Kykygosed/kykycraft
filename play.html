@@ -353,7 +353,19 @@ function addFriend(friendUid) {
   if (!user) return;
   db.ref('friends/' + user.uid + '/' + friendUid).set(true);
 }
-
+    
+function removeFriend(friendUid) {
+  const user = auth.currentUser;
+  if (!user) return;
+  db.ref('friends/' + user.uid + '/' + friendUid).remove()
+    .then(() => {
+      console.log(`Ami ${friendUid} supprimé.`);
+    })
+    .catch(error => {
+      console.error("Erreur lors de la suppression de l'ami :", error);
+    });
+} 
+    
 function loadFriends(uid) {
   const online = document.getElementById('friendsOnline');
   const offline = document.getElementById('friendsOffline');
@@ -380,15 +392,18 @@ function loadFriends(uid) {
           const playing = isOnline ? (user?.playing || 'Écran d’accueil') : 'Hors ligne';
 
           // Crée le bloc ami
-          const html = `
-            <div class="friend" data-uid="${fid}" style="display: flex; justify-content: space-between; align-items: center;">
-              <div>
-                ${username}<br>
-                <span class="status">${playing}</span>
-              </div>
-              ${crown}
-            </div>
-          `;
+const html = `
+  <div class="friend" data-uid="${fid}" style="display: flex; justify-content: space-between; align-items: center;">
+    <div>
+      ${username}<br>
+      <span class="status">${playing}</span>
+    </div>
+    ${crown}
+    <button style="margin-left:10px; background:#d9534f; color:white; border:none; border-radius:4px; padding:4px 8px; cursor:pointer;"
+      onclick="removeFriend('${fid}')"
+    >Supprimer</button>
+  </div>
+`;
 
           // Supprime cet utilisateur des deux listes s’il existe déjà
           const existingOnline = online.querySelector(`[data-uid="${fid}"]`);
