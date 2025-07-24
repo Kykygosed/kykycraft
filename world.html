@@ -135,6 +135,8 @@ const menuPopup = document.getElementById("menuPopup");
 const menuBtn = document.getElementById("menuBtn");
 const resumeBtn = document.getElementById("resumeBtn");
 const quitBtn = document.getElementById("quitBtn");
+const maxMonsters = 50;
+const monsters = [];
 
 let player = { x: 100, y: 100, size: 20 };
 let maxHearts = 10;
@@ -494,6 +496,51 @@ function drawMobs() {
     }
   }
 }
+
+
+// Fonction utilitaire (exemple)
+function isWalkable(x, y) {
+  // Ta logique pour savoir si la case est praticable
+}
+
+// Fonction pour créer un monstre (exemple)
+function createMonster(x, y) {
+  return { x, y, speed: 1 }; // exemple simple
+}
+
+// Ici, tu peux mettre ta fonction spawnMonstersGroup
+function spawnMonstersGroup() {
+  if (monsters.length >= maxMonsters) return; // limite max
+
+  let spawnX = Math.floor(Math.random() * mapWidth);
+  let spawnY = Math.floor(Math.random() * mapHeight);
+
+  if (!isWalkable(spawnX, spawnY)) return;
+
+  for (let i = 0; i < 3; i++) {
+    let offsetX = spawnX + (Math.floor(Math.random() * 3) - 1);
+    let offsetY = spawnY + (Math.floor(Math.random() * 3) - 1);
+
+    if (isWalkable(offsetX, offsetY)) {
+      monsters.push(createMonster(offsetX, offsetY));
+    }
+  }
+}
+
+// Ensuite, dans ta fonction d'initialisation du jeu (init ou équivalent)
+function initGame() {
+  // initialisation map, joueur, etc.
+
+  // Lancer la génération périodique des monstres
+setInterval(() => {
+  const hour = getInGameHour(); // ta fonction pour l'heure en jeu
+  if (hour >= 17 || hour < 8) {
+    spawnMonstersGroup();
+  }
+}, 10000);
+
+
+// Puis ta boucle principale gameLoop utilise `monsters`
 
 </script>
   
