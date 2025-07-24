@@ -366,20 +366,31 @@ function removeFriend(friendUid) {
     });
 } 
     
+const presenceListeners = {}; // Stocke les listeners pour pouvoir les enlever
+
 function loadFriends(uid) {
   const online = document.getElementById('friendsOnline');
   const offline = document.getElementById('friendsOffline');
 
-  // Écoute les changements dans la liste d'amis
+  // Enlève tous les anciens listeners presence avant d'en créer de nouveaux
+  function detachAllPresenceListeners() {
+    Object.entries(presenceListeners).forEach(([fid, listener]) => {
+      db.ref('presence/' + fid).off('value', listener);
+    });
+    Object.keys(presenceListeners).forEach(k => delete presenceListeners[k]);
+  }
+
   db.ref('friends/' + uid).on('value', snap => {
     const friendUids = snap.val();
-    if (!friendUids) {
-      online.innerHTML = '';
-      offline.innerHTML = '';
-      return;
-    }
 
-    // Pour chaque ami, on écoute sa présence en temps réel
+    // Supprime les anciens listeners presence
+    detachAllPresenceListeners();
+
+    online.innerHTML = '';
+    offline.innerHTML = '';
+
+    if (!friendUids) return;
+
     Object.keys(friendUids).forEach(fid => {
       db.ref('users/' + fid).once('value', uSnap => {
         const user = uSnap.val();
@@ -387,45 +398,51 @@ function loadFriends(uid) {
         const isKyky = username.toLowerCase() === "kykygosed";
         const crown = isKyky ? '<img src="crown.png" style="height: 20px; margin-left: auto;">' : '';
 
-        db.ref('presence/' + fid).on('value', pSnap => {
-          const isOnline = pSnap.val() === true;
-          const playing = isOnline ? (user?.playing || 'Écran d’accueil') : 'Hors ligne';
+        // Création de la fonction listener pour presence
+const presenceListener = pSnap => {
+  const isOnline = pSnap.val() === true;
+  const playing = isOnline ? (user?.playing || 'Écran d’accueil') : 'Hors ligne';
 
-          // Crée le bloc ami
-const html = `
-  <div class="friend" data-uid="${fid}" style="display: flex; justify-content: space-between; align-items: center;">
-    <div>
-      ${username}<br>
-      <span class="status">${playing}</span>
+  // Supprime l'élément s'il existe déjà dans les deux listes pour éviter doublons
+  const existingOnline = online.querySelector(`.friend[data-uid="${fid}"]`);
+  const existingOffline = offline.querySelector(`.friend[data-uid="${fid}"]`);
+  if (existingOnline) existingOnline.remove();
+  if (existingOffline) existingOffline.remove();
+
+  const html = `
+    <div class="friend" data-uid="${fid}" style="display: flex; justify-content: space-between; align-items: center;">
+      <div>
+        ${username}<br>
+        <span class="status">${playing}</span>
+      </div>
+      ${crown}
+      <button style="margin-left:10px; background:#d9534f; color:white; border:none; border-radius:4px; padding:4px 8px; cursor:pointer;"
+        onclick="removeFriend('${fid}')"
+      >Supprimer</button>
     </div>
-    ${crown}
-    <button style="margin-left:10px; background:#d9534f; color:white; border:none; border-radius:4px; padding:4px 8px; cursor:pointer;"
-      onclick="removeFriend('${fid}')"
-    >Supprimer</button>
-  </div>
-`;
+  `;
 
-          // Supprime cet utilisateur des deux listes s’il existe déjà
-          const existingOnline = online.querySelector(`[data-uid="${fid}"]`);
-          if (existingOnline) existingOnline.remove();
-          const existingOffline = offline.querySelector(`[data-uid="${fid}"]`);
-          if (existingOffline) existingOffline.remove();
+  const wrapper = document.createElement('div');
+  wrapper.innerHTML = html;
+  const friendElement = wrapper.firstElementChild;
 
-          // Ajoute dans la bonne liste
-          const wrapper = document.createElement('div');
-          wrapper.innerHTML = html;
-          const friendElement = wrapper.firstElementChild;
+  if (isOnline) {
+    online.appendChild(friendElement);
+  } else {
+    offline.appendChild(friendElement);
+  }
+};
 
-          if (isOnline) {
-            online.appendChild(friendElement);
-          } else {
-            offline.appendChild(friendElement);
-          }
-        });
+
+        // Sauvegarde et attache le listener
+        presenceListeners[fid] = presenceListener;
+        db.ref('presence/' + fid).on('value', presenceListener);
       });
     });
   });
 }
+
+
 
 
 auth.onAuthStateChanged(user => {
