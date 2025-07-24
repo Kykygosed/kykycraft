@@ -592,49 +592,45 @@ function loadGroups() {
   const groupsContainer = document.getElementById('groupsList');
   groupsContainer.innerHTML = 'Chargement des groupes...';
 
-  db.ref('groups').orderByChild('members/' + uid).equalTo(true).once('value', snap => {
+  // On récupère tous les groupes où l'utilisateur est membre
+  db.ref('groups').orderByChild(`members/${uid}`).equalTo(true).once('value', snap => {
     const groups = snap.val();
+    groupsContainer.innerHTML = '';
+
     if (!groups) {
-      groupsContainer.innerHTML = '<i>Aucun groupe trouvé</i>';
+      groupsContainer.innerHTML = '<i>Tu n’es membre d’aucun groupe.</i>';
       return;
     }
 
-    groupsContainer.innerHTML = '';
-    const groupEntries = Object.entries(groups);
+    Object.entries(groups).forEach(([groupId, group]) => {
+      // Récupère les pseudos des membres pour afficher
+      const memberUids = Object.keys(group.members || {});
+      const promises = memberUids.map(mid => 
+        db.ref('users/' + mid + '/username').once('value').then(snap => snap.val() || mid)
+      );
 
-    const allMemberUids = [];
-    groupEntries.forEach(([groupId, group]) => {
-      allMemberUids.push(...Object.keys(group.members));
-    });
-
-    const uniqueMemberUids = [...new Set(allMemberUids)];
-
-    const promises = uniqueMemberUids.map(uid =>
-      db.ref('users/' + uid + '/username').once('value').then(snap => ({ uid, username: snap.val() || 'Anonyme' }))
-    );
-
-    Promise.all(promises).then(usersData => {
-      const uidToUsername = {};
-      usersData.forEach(user => {
-        uidToUsername[user.uid] = user.username;
-      });
-
-      groupEntries.forEach(([groupId, group]) => {
-        const memberUids = Object.keys(group.members);
-        const memberNames = memberUids.map(u => uidToUsername[u] || 'Anonyme');
-        const displayName = memberNames.join(',');
+      Promise.all(promises).then(usernames => {
+        const membersStr = usernames.join(', ');
 
         const div = document.createElement('div');
-        div.textContent = displayName;
-        div.classList.add('groupEntry');
-        div.dataset.groupId = groupId;
+        div.className = 'group-item';
+        div.style = "background:#222; color:white; padding:10px; margin-bottom:8px; border-radius:6px;";
+        div.innerHTML = `
+          <strong>Groupe #${groupId.slice(-5)}</strong><br>
+          Membres : ${membersStr}<br>
+          Créé le : ${new Date(group.createdAt).toLocaleString()}<br>
+          <button class="btn" style="margin-top:6px;" onclick="openGroupChat('${groupId}')">Ouvrir le chat</button>
+        `;
         groupsContainer.appendChild(div);
-
-        // Ouvre popup chat au clic
-        div.addEventListener('click', () => openGroupChat(groupId, displayName));
       });
     });
   });
+}
+
+// Exemple simple d'ouverture du chat (à adapter)
+function openGroupChat(groupId) {
+  // Par exemple, rediriger vers une page chat avec paramètre groupId
+  window.location.href = `groupchat.html?group=${groupId}`;
 }
 
 // Variables globales du chat
