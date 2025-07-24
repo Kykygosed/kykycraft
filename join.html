@@ -140,16 +140,16 @@
       const user = auth.currentUser;
       if (user) {
         setPlaying(user.uid, "Ecran d'accueil").then(() => {
-          window.location.href = "index.html";
+          window.location.href = "play.html";
         });
       } else {
-        window.location.href = "index.html";
+        window.location.href = "play.html";
       }
     });
 
     auth.onAuthStateChanged(user => {
       if (!user) {
-        window.location.href = "index.html";
+        window.location.href = "play.html";
         return;
       }
       
