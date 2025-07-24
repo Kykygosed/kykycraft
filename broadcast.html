@@ -1,24 +1,58 @@
 <!DOCTYPE html>
-<html>
+<html lang="fr">
 <head>
-  <title>Partager Caméra</title>
+  <meta charset="UTF-8">
+  <title>Partager une Caméra</title>
   <style>
-    body { background: #111; color: white; font-family: sans-serif; text-align: center; margin: 0; }
-    video { width: 100%; max-width: 600px; height: auto; margin-top: 20px; }
-    input, select, button { margin: 8px; padding: 8px; font-size: 16px; }
+    body {
+      background-color: #111;
+      color: #fff;
+      font-family: Arial, sans-serif;
+      text-align: center;
+      padding: 20px;
+    }
+    input, select, button {
+      padding: 10px;
+      margin: 10px;
+      font-size: 16px;
+    }
+    video {
+      margin-top: 20px;
+      width: 90%;
+      max-width: 640px;
+      height: auto;
+      border: 2px solid #00ff00;
+      border-radius: 6px;
+    }
+    .status {
+      margin-top: 10px;
+      font-size: 14px;
+    }
+    .status.ok { color: #0f0; }
+    .status.error { color: red; }
   </style>
 </head>
 <body>
-  <input type="text" id="deviceName" placeholder="Nom de l'appareil">
+
+  <h2>🎥 Partager une caméra</h2>
+
+  <input type="text" id="deviceName" placeholder="Nom unique de l'appareil">
+  <br>
   <select id="cameraSelect"></select>
-  <button onclick="startBroadcast()">Partager</button><br>
+  <button id="refreshBtn">🔄 Actualiser</button>
+  <br>
+  <button id="startBtn">▶️ Démarrer</button>
+  <button id="stopBtn" disabled>⏹️ Arrêter</button>
+  <div id="status" class="status">En attente de sélection…</div>
+
   <video id="preview" autoplay muted playsinline></video>
 
-  <!-- Firebase -->
+  <!-- Firebase SDK -->
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 
   <script>
+    // ----- Configuration Firebase -----
     const firebaseConfig = {
       apiKey: "AIzaSyBPq6Wfxzq02MfK69BFxHm9_FUjDGTmAcw",
       authDomain: "kykychat-24c7f.firebaseapp.com",
@@ -28,45 +62,136 @@
       messagingSenderId: "342562811927",
       appId: "1:342562811927:web:0fed1e1f511c4fddcfec52"
     };
+
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
-    const cameraSelect = document.getElementById('cameraSelect');
-    const preview = document.getElementById('preview');
-    const deviceNameInput = document.getElementById('deviceName');
-    let currentStream;
+    // ----- Éléments DOM -----
+    const deviceNameInput = document.getElementById("deviceName");
+    const cameraSelect = document.getElementById("cameraSelect");
+    const startBtn = document.getElementById("startBtn");
+    const stopBtn = document.getElementById("stopBtn");
+    const refreshBtn = document.getElementById("refreshBtn");
+    const statusDiv = document.getElementById("status");
+    const preview = document.getElementById("preview");
 
-    // Liste caméras disponibles
-    navigator.mediaDevices.enumerateDevices().then(devices => {
-      devices.filter(d => d.kind === 'videoinput').forEach(cam => {
-        const opt = document.createElement('option');
-        opt.value = cam.deviceId;
-        opt.text = cam.label || `Caméra ${cameraSelect.length + 1}`;
-        cameraSelect.appendChild(opt);
+    let currentStream = null;
+    let pingInterval = null;
+
+    // ----- Fonctions -----
+    function updateStatus(msg, ok = true) {
+      statusDiv.textContent = msg;
+      statusDiv.className = "status " + (ok ? "ok" : "error");
+    }
+
+    async function listCameras() {
+      try {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const cameras = devices.filter(d => d.kind === "videoinput");
+
+        cameraSelect.innerHTML = "";
+        cameras.forEach((cam, i) => {
+          const opt = document.createElement("option");
+          opt.value = cam.deviceId;
+          opt.textContent = cam.label || `Caméra ${i + 1}`;
+          cameraSelect.appendChild(opt);
+        });
+
+        if (cameras.length === 0) {
+          updateStatus("Aucune caméra détectée.", false);
+        } else {
+          updateStatus("Caméras détectées : " + cameras.length);
+        }
+      } catch (err) {
+        updateStatus("Erreur de détection caméra : " + err.message, false);
+      }
+    }
+
+    async function startStream() {
+      const name = deviceNameInput.value.trim();
+      if (!name) return updateStatus("Veuillez entrer un nom unique.", false);
+
+      const deviceId = cameraSelect.value;
+      if (!deviceId) return updateStatus("Aucune caméra sélectionnée.", false);
+
+      try {
+        stopStream(); // nettoyage
+
+        const constraints = {
+          video: { deviceId: { exact: deviceId }, width: 1280, height: 720 },
+          audio: false
+        };
+
+        const stream = await navigator.mediaDevices.getUserMedia(constraints);
+        preview.srcObject = stream;
+        currentStream = stream;
+
+        // Écriture dans Firebase
+        const camRef = db.ref("cameras/" + name);
+        await camRef.set({
+          name: name,
+          deviceId: deviceId,
+          userAgent: navigator.userAgent,
+          online: true,
+          timestamp: Date.now()
+        });
+
+        // Ping régulier
+        pingInterval = setInterval(() => {
+          camRef.update({ timestamp: Date.now() });
+        }, 30000);
+
+        updateStatus("Caméra en diffusion locale.");
+        stopBtn.disabled = false;
+        startBtn.disabled = true;
+        cameraSelect.disabled = true;
+        deviceNameInput.disabled = true;
+      } catch (err) {
+        updateStatus("Erreur de stream : " + err.message, false);
+      }
+    }
+
+    function stopStream() {
+      if (currentStream) {
+        currentStream.getTracks().forEach(t => t.stop());
+        currentStream = null;
+        updateStatus("Caméra arrêtée.");
+      }
+      if (pingInterval) {
+        clearInterval(pingInterval);
+        pingInterval = null;
+      }
+      stopBtn.disabled = true;
+      startBtn.disabled = false;
+      cameraSelect.disabled = false;
+      deviceNameInput.disabled = false;
+    }
+
+    // ----- Événements -----
+    startBtn.onclick = startStream;
+    stopBtn.onclick = stopStream;
+    refreshBtn.onclick = listCameras;
+
+    // Chargement auto au démarrage
+    window.addEventListener("DOMContentLoaded", async () => {
+      try {
+        await navigator.mediaDevices.getUserMedia({ video: true });
+      } catch (e) {
+        updateStatus("⚠️ Autorisation caméra requise pour continuer.", false);
+      }
+      listCameras();
+
+      // Restauration du nom utilisé
+      const lastName = localStorage.getItem("lastDeviceName");
+      if (lastName) deviceNameInput.value = lastName;
+
+      deviceNameInput.addEventListener("input", () => {
+        localStorage.setItem("lastDeviceName", deviceNameInput.value.trim());
       });
     });
 
-    async function startBroadcast() {
-      const name = deviceNameInput.value.trim();
-      if (!name) return alert("Entrez un nom !");
-      const deviceId = cameraSelect.value;
-
-      if (currentStream) currentStream.getTracks().forEach(t => t.stop());
-
-      const stream = await navigator.mediaDevices.getUserMedia({ video: { deviceId } });
-      preview.srcObject = stream;
-      currentStream = stream;
-
-      // Crée une URL temporaire et la stocke dans Firebase
-      const url = URL.createObjectURL(stream);
-      firebase.database().ref('cameras/' + name).set({
-        name: name,
-        streamId: name, // clé unique
-        timestamp: Date.now()
-      });
-
-      // Ce type de partage est purement local, donc chaque client doit être sur le même LAN
-    }
+    // Fermeture : arrête tout
+    window.addEventListener("beforeunload", stopStream);
   </script>
 </body>
 </html>
