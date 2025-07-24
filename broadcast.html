@@ -2,57 +2,54 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
-  <title>Partager une Caméra</title>
+  <title>Partager ma caméra</title>
   <style>
     body {
-      background-color: #111;
-      color: #fff;
+      background: #111;
+      color: white;
       font-family: Arial, sans-serif;
-      text-align: center;
       padding: 20px;
     }
-    input, select, button {
-      padding: 10px;
-      margin: 10px;
-      font-size: 16px;
-    }
+
     video {
-      margin-top: 20px;
-      width: 90%;
-      max-width: 640px;
-      height: auto;
-      border: 2px solid #00ff00;
-      border-radius: 6px;
+      width: 100%;
+      max-height: 60vh;
+      background: black;
+      margin-bottom: 10px;
     }
+
+    select, input, button {
+      padding: 8px;
+      margin: 5px 0;
+      font-size: 16px;
+      width: 100%;
+    }
+
     .status {
       margin-top: 10px;
-      font-size: 14px;
+      color: lightgreen;
     }
-    .status.ok { color: #0f0; }
-    .status.error { color: red; }
+
+    .error {
+      color: red;
+    }
   </style>
 </head>
 <body>
+  <h2>🎥 Partage de caméra</h2>
 
-  <h2>🎥 Partager une caméra</h2>
+  <video id="video" autoplay playsinline muted></video>
 
-  <input type="text" id="deviceName" placeholder="Nom unique de l'appareil">
-  <br>
   <select id="cameraSelect"></select>
-  <button id="refreshBtn">🔄 Actualiser</button>
-  <br>
-  <button id="startBtn">▶️ Démarrer</button>
-  <button id="stopBtn" disabled>⏹️ Arrêter</button>
-  <div id="status" class="status">En attente de sélection…</div>
-
-  <video id="preview" autoplay muted playsinline></video>
+  <input type="text" id="deviceName" placeholder="Nom de votre appareil (ex: PC-kyky)">
+  <button id="startBtn">🎬 Démarrer</button>
+  <div class="status" id="status">En attente...</div>
 
   <!-- Firebase SDK -->
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 
   <script>
-    // ----- Configuration Firebase -----
     const firebaseConfig = {
       apiKey: "AIzaSyBPq6Wfxzq02MfK69BFxHm9_FUjDGTmAcw",
       authDomain: "kykychat-24c7f.firebaseapp.com",
@@ -62,136 +59,94 @@
       messagingSenderId: "342562811927",
       appId: "1:342562811927:web:0fed1e1f511c4fddcfec52"
     };
-
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
-    // ----- Éléments DOM -----
-    const deviceNameInput = document.getElementById("deviceName");
+    const video = document.getElementById("video");
     const cameraSelect = document.getElementById("cameraSelect");
     const startBtn = document.getElementById("startBtn");
-    const stopBtn = document.getElementById("stopBtn");
-    const refreshBtn = document.getElementById("refreshBtn");
-    const statusDiv = document.getElementById("status");
-    const preview = document.getElementById("preview");
+    const deviceNameInput = document.getElementById("deviceName");
+    const status = document.getElementById("status");
 
     let currentStream = null;
-    let pingInterval = null;
 
-    // ----- Fonctions -----
-    function updateStatus(msg, ok = true) {
-      statusDiv.textContent = msg;
-      statusDiv.className = "status " + (ok ? "ok" : "error");
-    }
-
+    // 🔍 Liste les caméras disponibles
     async function listCameras() {
       try {
         const devices = await navigator.mediaDevices.enumerateDevices();
-        const cameras = devices.filter(d => d.kind === "videoinput");
+        const videoDevices = devices.filter(d => d.kind === "videoinput");
 
         cameraSelect.innerHTML = "";
-        cameras.forEach((cam, i) => {
-          const opt = document.createElement("option");
-          opt.value = cam.deviceId;
-          opt.textContent = cam.label || `Caméra ${i + 1}`;
-          cameraSelect.appendChild(opt);
+        videoDevices.forEach(device => {
+          const option = document.createElement("option");
+          option.value = device.deviceId;
+          option.textContent = device.label || "Caméra " + (cameraSelect.length + 1);
+          cameraSelect.appendChild(option);
         });
 
-        if (cameras.length === 0) {
-          updateStatus("Aucune caméra détectée.", false);
-        } else {
-          updateStatus("Caméras détectées : " + cameras.length);
+        if (videoDevices.length === 0) {
+          status.textContent = "Aucune caméra détectée.";
+          status.classList.add("error");
         }
       } catch (err) {
-        updateStatus("Erreur de détection caméra : " + err.message, false);
+        status.textContent = "Erreur de détection des caméras.";
+        status.classList.add("error");
+        console.error(err);
       }
     }
 
+    // 🎬 Démarre le flux vidéo
     async function startStream() {
-      const name = deviceNameInput.value.trim();
-      if (!name) return updateStatus("Veuillez entrer un nom unique.", false);
+      if (!deviceNameInput.value.trim()) {
+        alert("Veuillez entrer un nom pour l'appareil.");
+        return;
+      }
 
-      const deviceId = cameraSelect.value;
-      if (!deviceId) return updateStatus("Aucune caméra sélectionnée.", false);
+      if (currentStream) {
+        currentStream.getTracks().forEach(t => t.stop());
+      }
 
       try {
-        stopStream(); // nettoyage
-
         const constraints = {
-          video: { deviceId: { exact: deviceId }, width: 1280, height: 720 },
+          video: {
+            deviceId: { exact: cameraSelect.value }
+          },
           audio: false
         };
 
         const stream = await navigator.mediaDevices.getUserMedia(constraints);
-        preview.srcObject = stream;
         currentStream = stream;
+        video.srcObject = stream;
 
-        // Écriture dans Firebase
-        const camRef = db.ref("cameras/" + name);
-        await camRef.set({
-          name: name,
-          deviceId: deviceId,
-          userAgent: navigator.userAgent,
-          online: true,
-          timestamp: Date.now()
-        });
+        status.textContent = "🎥 Caméra activée.";
 
-        // Ping régulier
-        pingInterval = setInterval(() => {
-          camRef.update({ timestamp: Date.now() });
-        }, 30000);
+        // 🔄 Ping Firebase toutes les 10s
+        const name = deviceNameInput.value.trim();
+        const update = () => {
+          db.ref("cameras/" + name).set({
+            name: name,
+            timestamp: Date.now()
+          });
+        };
+        update();
+        setInterval(update, 10000);
 
-        updateStatus("Caméra en diffusion locale.");
-        stopBtn.disabled = false;
-        startBtn.disabled = true;
-        cameraSelect.disabled = true;
-        deviceNameInput.disabled = true;
       } catch (err) {
-        updateStatus("Erreur de stream : " + err.message, false);
+        console.error("Erreur de démarrage de la caméra :", err);
+        status.textContent = "Erreur : impossible de démarrer la caméra.";
+        status.classList.add("error");
       }
     }
 
-    function stopStream() {
-      if (currentStream) {
-        currentStream.getTracks().forEach(t => t.stop());
-        currentStream = null;
-        updateStatus("Caméra arrêtée.");
-      }
-      if (pingInterval) {
-        clearInterval(pingInterval);
-        pingInterval = null;
-      }
-      stopBtn.disabled = true;
-      startBtn.disabled = false;
-      cameraSelect.disabled = false;
-      deviceNameInput.disabled = false;
-    }
+    // 📦 Initialisation
+    listCameras();
 
-    // ----- Événements -----
-    startBtn.onclick = startStream;
-    stopBtn.onclick = stopStream;
-    refreshBtn.onclick = listCameras;
-
-    // Chargement auto au démarrage
-    window.addEventListener("DOMContentLoaded", async () => {
-      try {
-        await navigator.mediaDevices.getUserMedia({ video: true });
-      } catch (e) {
-        updateStatus("⚠️ Autorisation caméra requise pour continuer.", false);
-      }
-      listCameras();
-
-      // Restauration du nom utilisé
-      const lastName = localStorage.getItem("lastDeviceName");
-      if (lastName) deviceNameInput.value = lastName;
-
-      deviceNameInput.addEventListener("input", () => {
-        localStorage.setItem("lastDeviceName", deviceNameInput.value.trim());
-      });
+    startBtn.addEventListener("click", () => {
+      startStream();
     });
 
-    // Fermeture : arrête tout
-    window.addEventListener("beforeunload", stopStream);
+    // 🔁 Met à jour les caméras disponibles si on branche une nouvelle
+    navigator.mediaDevices.addEventListener("devicechange", listCameras);
   </script>
 </body>
 </html>
