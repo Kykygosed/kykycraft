@@ -315,6 +315,23 @@ document.getElementById("exploreBtn").onclick = () => {
 document.getElementById("quitBtnTop").onclick = () => {
   location.href = "play.html";
 };
+function savePlayerDied(uuid, world) {
+  const diedRef = ref(db, `users/${uuid}/worlds/${world}`);
+  return update(diedRef, { died: true });
+}
+  function onPlayerDeath() {
+  if (isUniqueMode) {
+    savePlayerDied(playerUUID, worldName).then(() => {
+      window.location.href = 'play.html'; // redirige après sauvegarde
+    }).catch(err => {
+      console.error("Erreur sauvegarde mort:", err);
+      // Tu peux aussi forcer la redirection même en cas d'erreur
+      window.location.href = 'play.html';
+    });
+  } else {
+    // gestion mort normale ici
+  }
+}
 
 function updateFirebaseCoords() {
   db.ref(`users/${uid}/worlds/${currentWorld}/playerinfos/coords`).set({
