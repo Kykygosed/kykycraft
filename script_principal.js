@@ -242,3 +242,59 @@ window.addEventListener("beforeunload", async () => {
   await db.ref(`presence/${uid}`).set(false);
   await db.ref(`users/${uid}/playing`).set("Ecran d'accueil");
 });
+auth.onAuthStateChanged(async user => {
+  if (!user) {
+    // Pas connecté, on renvoie à la page de connexion
+    return location.href = "index.html";
+  }
+
+  uid = user.uid;
+  document.getElementById("loading").style.display = "flex";
+
+  try {
+    // Récupérer le monde courant dans lequel joue l'utilisateur
+    const playingSnap = await db.ref(`users/${uid}/playing`).once("value");
+    currentWorld = playingSnap.val();
+
+    // Si pas de monde ou "Ecran d'accueil", renvoyer vers la page play
+    if (!currentWorld || currentWorld === "Ecran d'accueil") {
+      return location.href = "play.html";
+    }
+
+    // Charger la position du joueur
+    const coordsSnap = await db.ref(`users/${uid}/worlds/${currentWorld}/playerinfos/coords`).once("value");
+    if (coordsSnap.exists()) {
+      const val = coordsSnap.val();
+      player.x = parseFloat(val.x) || 100;
+      player.y = parseFloat(val.y) || 100;
+    }
+
+    // Charger la date / heure du jeu
+    const dateSnap = await db.ref(`users/${uid}/worlds/${currentWorld}/date`).once("value");
+    if (dateSnap.exists()) {
+      const [h, m] = dateSnap.val().split(":").map(Number);
+      inGameMinutes = h * 60 + m;
+    }
+
+    // Charger le jour actuel
+    const daySnap = await db.ref(`users/${uid}/worlds/${currentWorld}/day`).once("value");
+    if (daySnap.exists()) {
+      currentDay = daySnap.val();
+    }
+
+    // Charger ou générer les positions des arbres
+    await loadOrGenerateTrees();
+
+    // Marquer l'utilisateur comme présent
+    await db.ref(`presence/${uid}`).set(true);
+
+  } catch (error) {
+    console.error("Erreur lors du chargement des données :", error);
+    alert("Une erreur est survenue lors du chargement du jeu.");
+    return location.href = "play.html";
+  }
+
+  // Tout est prêt, masquer le chargement et démarrer le jeu
+  document.getElementById("loading").style.display = "none";
+  requestAnimationFrame(gameLoop);
+});
