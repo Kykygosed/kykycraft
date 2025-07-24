@@ -193,7 +193,6 @@ body {
 <div id="friends" class="content" style="display:none">
   <input type="text" placeholder="Rechercher un joueur..." oninput="searchUsers(this.value)">
   <div id="searchResults"></div>
-<button id="btnNewGroup" class="btn" style="margin-top:10px;">+ Nouveau groupe</button>
 
   <div class="friend-section online">
     <div class="friend-header">
@@ -218,15 +217,6 @@ body {
     <input id="chosenPseudo" type="text" placeholder="Ton pseudo..." style="font-family:'Press Start 2P'; width:100%; padding:10px; margin-bottom:10px;">
     <button onclick="savePseudo()" style="padding:10px 20px; background:green; border:none; color:white; cursor:pointer; font-family:'Press Start 2P';">Valider</button>
     <div id="pseudoError" style="color:red; margin-top:10px; font-size:10px;"></div>
-  </div>
-</div>
-<div id="newGroupModal" style="display:none; justify-content:center; align-items:center; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.85); z-index:10000;">
-  <div style="background:#222; padding:20px; border:4px solid #555; width:90%; max-width:400px; max-height:80vh; overflow-y:auto; text-align:center;">
-    <h2 style="font-size:12px; margin-bottom:15px;">Sélectionne des amis</h2>
-    <div id="friendCheckboxList" style="text-align:left; max-height:50vh; overflow-y:auto; margin-bottom:15px;"></div>
-    <button id="createGroupBtn" class="btn" style="margin-right:10px;">Créer le groupe</button>
-    <button onclick="closeNewGroupModal()" class="btn" style="background:#a33;">Annuler</button>
-    <div id="groupError" style="color:red; margin-top:10px; font-size:10px;"></div>
   </div>
 </div>
 
@@ -452,100 +442,6 @@ const presenceListener = pSnap => {
   });
 }
 
-// Ouvre la fenêtre modal
-document.getElementById('btnNewGroup').addEventListener('click', () => {
-  // Charge les amis actuels pour les afficher en checkbox
-  loadFriendsForGroup();
-  document.getElementById('newGroupModal').style.display = 'flex';
-});
-
-// Ferme le modal
-function closeNewGroupModal() {
-  document.getElementById('newGroupModal').style.display = 'none';
-  document.getElementById('friendCheckboxList').innerHTML = '';
-  document.getElementById('groupError').textContent = '';
-}
-
-// Charge la liste des amis pour les afficher avec des checkbox
-function loadFriendsForGroup() {
-  const uid = auth.currentUser?.uid;
-  if (!uid) return;
-
-  const container = document.getElementById('friendCheckboxList');
-  container.innerHTML = 'Chargement...';
-
-  db.ref('friends/' + uid).once('value', snap => {
-    const friends = snap.val();
-    if (!friends) {
-      container.innerHTML = '<i>Aucun ami disponible</i>';
-      return;
-    }
-    container.innerHTML = '';
-    const friendUids = Object.keys(friends);
-
-    // On récupère les infos username de chaque ami
-    const promises = friendUids.map(fid =>
-      db.ref('users/' + fid + '/username').once('value').then(s => ({uid: fid, username: s.val()}))
-    );
-
-    Promise.all(promises).then(results => {
-      results.forEach(friend => {
-        if (!friend.username) return;
-        const id = 'chkfriend_' + friend.uid;
-        container.innerHTML += `
-          <label style="display:block; margin-bottom:6px; cursor:pointer;">
-            <input type="checkbox" id="${id}" value="${friend.uid}">
-            ${friend.username}
-          </label>
-        `;
-      });
-    });
-  });
-}
-
-// Création du groupe au clic
-document.getElementById('createGroupBtn').addEventListener('click', () => {
-  const checkboxes = document.querySelectorAll('#friendCheckboxList input[type=checkbox]:checked');
-  const groupError = document.getElementById('groupError');
-
-  if (checkboxes.length === 0) {
-    groupError.textContent = "Sélectionne au moins un ami.";
-    return;
-  }
-
-  const uid = auth.currentUser?.uid;
-  if (!uid) {
-    groupError.textContent = "Utilisateur non connecté.";
-    return;
-  }
-
-  // Récupère les UIDs sélectionnés + soi-même
-  const members = Array.from(checkboxes).map(cb => cb.value);
-  members.push(uid);
-
-  // Crée un ID de groupe (push dans Firebase)
-  const newGroupRef = db.ref('groups').push();
-  const groupId = newGroupRef.key;
-
-  // Données du groupe
-  const groupData = {
-    members: {},
-    createdAt: Date.now(),
-    createdBy: uid
-  };
-  members.forEach(m => groupData.members[m] = true);
-
-  newGroupRef.set(groupData)
-    .then(() => {
-      closeNewGroupModal();
-      alert("Groupe créé !");
-      // TODO: Mettre à jour l'affichage, rediriger vers le chat de groupe, etc.
-    })
-    .catch(err => {
-      groupError.textContent = "Erreur lors de la création du groupe.";
-      console.error(err);
-    });
-});
 
 
 
