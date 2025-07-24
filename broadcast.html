@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Partager Caméra</title>
+  <style>
+    body { background: #111; color: white; font-family: sans-serif; text-align: center; }
+    video { width: 80%; margin-top: 20px; }
+    select, input, button { margin: 10px; padding: 8px; font-size: 16px; }
+  </style>
+</head>
+<body>
+  <h1>Partager une Caméra</h1>
+  <input type="text" id="deviceName" placeholder="Nom de l'appareil"><br>
+  <select id="cameraSelect"></select><br>
+  <button onclick="startBroadcast()">Démarrer</button><br>
+  <video id="preview" autoplay muted playsinline></video>
+
+  <!-- Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyBPq6Wfxzq02MfK69BFxHm9_FUjDGTmAcw",
+      authDomain: "kykychat-24c7f.firebaseapp.com",
+      databaseURL: "https://kykychat-24c7f-default-rtdb.firebaseio.com",
+      projectId: "kykychat-24c7f",
+      storageBucket: "kykychat-24c7f.appspot.com",
+      messagingSenderId: "342562811927",
+      appId: "1:342562811927:web:0fed1e1f511c4fddcfec52"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    const cameraSelect = document.getElementById('cameraSelect');
+    const preview = document.getElementById('preview');
+    const deviceNameInput = document.getElementById('deviceName');
+    let currentStream;
+
+    navigator.mediaDevices.enumerateDevices().then(devices => {
+      devices.filter(d => d.kind === 'videoinput').forEach(cam => {
+        const opt = document.createElement('option');
+        opt.value = cam.deviceId;
+        opt.text = cam.label || `Caméra ${cameraSelect.length + 1}`;
+        cameraSelect.appendChild(opt);
+      });
+    });
+
+    async function startBroadcast() {
+      const deviceId = cameraSelect.value;
+      const name = deviceNameInput.value.trim();
+      if (!name) return alert("Entrez un nom !");
+      if (currentStream) currentStream.getTracks().forEach(t => t.stop());
+
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { deviceId } });
+      preview.srcObject = stream;
+      currentStream = stream;
+
+      const mediaRecorder = new MediaRecorder(stream);
+      const chunks = [];
+      mediaRecorder.ondataavailable = e => chunks.push(e.data);
+      mediaRecorder.onstop = () => {
+        const blob = new Blob(chunks, { type: 'video/webm' });
+        const url = URL.createObjectURL(blob);
+        firebase.database().ref('cameras/' + name).set({
+          name, streamUrl: url, timestamp: Date.now()
+        });
+      };
+      mediaRecorder.start(1000);
+    }
+  </script>
+</body>
+</html>
