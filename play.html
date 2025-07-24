@@ -604,9 +604,9 @@ function openGroupChat(groupId, groupName) {
   });
 }
 
-function loadMessages(groupId, groupName) {
+function loadMessages(groupId) {
   const messagesDiv = document.getElementById('chatMessages');
-  messagesDiv.innerHTML = `<strong>${groupName}</strong><br><br>`; // vide et ajoute titre
+  messagesDiv.innerHTML = ''; // Vide avant ajout
 
   db.ref('groups/' + groupId + '/messages')
     .orderByChild('timestamp')
@@ -615,31 +615,16 @@ function loadMessages(groupId, groupName) {
       const messages = snapshot.val();
       if (!messages) return;
 
-      // Convertir en tableau et trier par timestamp (par précaution)
-      const messagesArray = Object.entries(messages).map(([id, msg]) => ({ id, ...msg }));
-      messagesArray.sort((a, b) => a.timestamp - b.timestamp);
+      Object.values(messages).forEach(msg => {
+        const div = document.createElement('div');
+        div.textContent = msg.sender + ': ' + msg.text;
+        messagesDiv.appendChild(div);
+      });
 
-      // Pour chaque message, récupérer le nom de l'envoyeur et afficher
-      const promises = messagesArray.map(msg =>
-        db.ref('users/' + msg.sender).once('value').then(uSnap => {
-          const senderName = uSnap.val()?.username || msg.sender;
-          const div = document.createElement('div');
-          div.textContent = `${senderName}: ${msg.text}`;
-          messagesDiv.appendChild(div);
-        })
-      );
-
-      // Quand tous les messages sont affichés, scroller en bas
-      return Promise.all(promises);
-    })
-    .then(() => {
-      // Scroll en bas
-      messagesDiv.scrollTop = messagesDiv.scrollHeight;
-    })
-    .catch(err => {
-      console.error("Erreur chargement messages :", err);
+      messagesDiv.scrollTop = messagesDiv.scrollHeight; // scroll en bas
     });
 }
+
 
 function sendGroupMessage() {
   const input = document.getElementById('chatInput');
