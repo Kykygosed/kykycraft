@@ -286,7 +286,7 @@ function showWorlds(uid) {
       worldList.innerHTML = '<img src="noworlds.png" style="width:100%">';
     } else {
       worldList.innerHTML = '';
-      Object.values(data).forEach(world => {
+      Object.entries(data).forEach(([worldKey, world]) => {
         const modeBox = `<div style="display:inline-block; background:#444; color:white; padding:4px 8px; margin-right:5px;">${world.mode}</div>`;
         const uniqueBox = world.unique ? `<div style="display:inline-block; background:gold; color:black; padding:4px 8px;">Unique</div>` : '';
 
@@ -304,15 +304,34 @@ function showWorlds(uid) {
               <div>${world.createdAt}</div>
             </div>
             <button 
-              style="background:#28a745; color:white; border:none; padding:8px 12px; border-radius:4px; cursor:pointer;"
+              style="background:#28a745; color:white; border:none; padding:8px 12px; border-radius:4px; cursor:pointer; margin-right: 5px;"
               onclick="playWorld('${world.name}', '${uid}')"
             >Jouer</button>
+            <button 
+              style="background:#d9534f; color:white; border:none; padding:8px 12px; border-radius:4px; cursor:pointer;"
+              onclick="deleteWorld('${uid}', '${worldKey}')"
+            >Supprimer</button>
           </div>
         `;
       });
     }
   });
 }
+
+function deleteWorld(uid, worldKey) {
+  if (!confirm("Es-tu sûr de vouloir supprimer ce monde ? Cette action est irréversible.")) return;
+
+  db.ref(`users/${uid}/worlds/${worldKey}`).remove()
+    .then(() => {
+      console.log("Monde supprimé avec succès");
+      showWorlds(uid); // Rafraîchit la liste après suppression
+    })
+    .catch(err => {
+      console.error("Erreur lors de la suppression :", err);
+      alert("Erreur lors de la suppression, réessaie plus tard.");
+    });
+}
+
 
 function playWorld(worldName, uid) {
   const nowPlayingRef = db.ref(`users/${uid}/playing`);
