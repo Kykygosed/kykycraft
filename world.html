@@ -2,21 +2,25 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8" />
-  <title>World</title>
+  <title>World Infini</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
+    @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+
     html, body {
       margin: 0; padding: 0; overflow: hidden; background: black;
+      font-family: 'Press Start 2P', monospace;
+      user-select: none;
     }
     #gameCanvas {
       display: block;
+      background: black;
     }
     #loading {
       position: fixed;
       top: 0; left: 0; width: 100vw; height: 100vh;
       background: black;
       color: white;
-      font-family: 'Press Start 2P', monospace;
       font-size: 32px;
       display: flex;
       align-items: center;
@@ -27,34 +31,58 @@
       position: fixed;
       top: 10px; right: 10px;
       color: white;
-      font-family: 'Press Start 2P', monospace;
       font-size: 12px;
       z-index: 10;
+      background: rgba(0,0,0,0.5);
+      padding: 5px 10px;
+      border-radius: 5px;
     }
     #menuBtn {
       position: fixed;
       top: 10px; left: 10px;
       background: white;
-      font-family: 'Press Start 2P';
-      padding: 5px;
+      font-size: 14px;
+      padding: 8px 15px;
+      border-radius: 8px;
+      border: none;
+      cursor: pointer;
       display: none;
       z-index: 10;
-      cursor: pointer;
+      transition: background-color 0.3s;
+    }
+    #menuBtn:hover {
+      background: #ddd;
     }
     #menuPopup {
       position: fixed;
       top: 50%; left: 50%;
       transform: translate(-50%, -50%);
-      background: white;
-      padding: 20px;
-      font-family: 'Press Start 2P';
+      background: #222;
+      color: white;
+      padding: 30px 40px;
+      font-size: 16px;
+      border-radius: 15px;
+      box-shadow: 0 0 15px #00ff00aa;
       display: none;
       z-index: 10000;
+      text-align: center;
+      width: 250px;
     }
     #menuPopup button {
-      display: block;
-      margin-top: 10px;
+      margin-top: 20px;
+      padding: 10px 20px;
+      font-family: 'Press Start 2P';
+      font-size: 14px;
+      background: #00ff00;
+      border: none;
+      border-radius: 10px;
+      color: black;
       cursor: pointer;
+      transition: background-color 0.3s;
+      width: 100%;
+    }
+    #menuPopup button:hover {
+      background: #00cc00;
     }
   </style>
 
@@ -68,13 +96,13 @@
   <div id="loading">Chargement...</div>
   <button id="menuBtn">MENU</button>
   <div id="coords"></div>
-  <div id="menuPopup">
-    <div>Menu</div>
+  <div id="menuPopup" role="dialog" aria-modal="true" aria-labelledby="menuTitle">
+    <div id="menuTitle" style="font-size:18px; margin-bottom:10px;">Menu</div>
     <button id="resumeBtn">Reprendre</button>
-    <button id="quitBtn">Sauvegarder et quitter</button>
+    <button id="quitBtn">Sauvegarder et Quitter</button>
   </div>
 
-  <canvas id="gameCanvas" width="800" height="600"></canvas>
+  <canvas id="gameCanvas"></canvas>
 
   <script>
     const firebaseConfig = {
@@ -98,30 +126,50 @@
     const resumeBtn = document.getElementById("resumeBtn");
     const quitBtn = document.getElementById("quitBtn");
 
+    let player = { x: 100, y: 100, size: 20 };
+    let uid = "";
+    let currentWorld = "";
+
     const isMobile = /Mobi|Android/i.test(navigator.userAgent);
     if (isMobile) menuBtn.style.display = "block";
 
-    let player = { x: 100, y: 100, size: 20 };
-    let camera = { x: 0, y: 0 };
-    let currentWorld = "";
-    let uid = "";
-
+    // Charger l'image map tile
     const mapImg = new Image();
     mapImg.src = "map.png";
 
-    // Fonction pour dessiner une image en tiles infinies
+    // Ajuster canvas à la fenêtre
+    function resize() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    }
+    window.addEventListener("resize", resize);
+    resize();
+
+    // Dessiner la map infinie, en fonction des coords du joueur
     function drawInfiniteMap() {
-      const pattern = ctx.createPattern(mapImg, 'repeat');
-      ctx.fillStyle = pattern;
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      const tileW = mapImg.width;
+      const tileH = mapImg.height;
+
+      // Offset modulo taille tile, pour "boucler"
+      const offsetX = - (player.x % tileW);
+      const offsetY = - (player.y % tileH);
+
+      // On dessine assez de tiles pour remplir tout le canvas
+      const tilesX = Math.ceil(canvas.width / tileW) + 1;
+      const tilesY = Math.ceil(canvas.height / tileH) + 1;
+
+      for (let y = 0; y < tilesY; y++) {
+        for (let x = 0; x < tilesX; x++) {
+          ctx.drawImage(mapImg, offsetX + x * tileW, offsetY + y * tileH);
+        }
+      }
     }
 
-    // Charger le monde, récupérer coords, gérer présence et loading
+    // Gestion auth et chargement des infos joueur
     auth.onAuthStateChanged(async user => {
       if (!user) return location.href = "index.html";
       uid = user.uid;
 
-      // On affiche le loading tant que tout n'est pas prêt
       document.getElementById("loading").style.display = "flex";
 
       const playingSnap = await db.ref(`users/${uid}/playing`).once("value");
@@ -132,7 +180,6 @@
         return;
       }
 
-      // Charger coords sauvegardées
       const coordsSnap = await db.ref(`users/${uid}/worlds/${currentWorld}/playerinfos/coords`).once("value");
       if (coordsSnap.exists()) {
         const val = coordsSnap.val();
@@ -140,88 +187,82 @@
         player.y = parseFloat(val.y) || 100;
       }
 
-      // Mettre la présence à true dès qu'on entre dans le monde
       await db.ref(`presence/${uid}`).set(true);
 
-      // Retirer le loading
       document.getElementById("loading").style.display = "none";
 
-      // Lancer la boucle de jeu
       requestAnimationFrame(gameLoop);
     });
 
-    // Met à jour les coordonnées dans la DB (2 décimales)
+    // Mise à jour coords Firebase
     function updateFirebaseCoords() {
-      const x = player.x.toFixed(2);
-      const y = player.y.toFixed(2);
-      db.ref(`users/${uid}/worlds/${currentWorld}/playerinfos/coords`).set({ x, y });
+      db.ref(`users/${uid}/worlds/${currentWorld}/playerinfos/coords`).set({
+        x: player.x.toFixed(2),
+        y: player.y.toFixed(2)
+      });
     }
 
-    // Boucle principale du jeu
-    function gameLoop() {
-      // Adapter la taille du canvas à la fenêtre
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
-
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-      // Calcul caméra pour centrer sur le joueur
-      camera.x = player.x - canvas.width / 2;
-      camera.y = player.y - canvas.height / 2;
-
-      // Dessiner la map répétée infiniment en décalant selon la caméra
-      // Pour simuler le déplacement on translate et dessine un rectangle rempli par le pattern
-      ctx.save();
-      ctx.translate(-camera.x, -camera.y);
-      drawInfiniteMap();
-      ctx.restore();
-
-      // Dessiner le joueur
-      ctx.fillStyle = "red";
-      ctx.fillRect(player.x - camera.x, player.y - camera.y, player.size, player.size);
-
-      // Afficher les coordonnées
-      coordsEl.textContent = `X: ${player.x.toFixed(2)} Y: ${player.y.toFixed(2)}`;
-
-      handleMovement();
-      updateFirebaseCoords();
-
-      requestAnimationFrame(gameLoop);
-    }
-
-    // Gestion des touches pour déplacer le joueur
-    let keys = {};
-    document.addEventListener("keydown", e => {
+    // Déplacement joueur via touches
+    const keys = {};
+    window.addEventListener("keydown", e => {
       keys[e.key.toLowerCase()] = true;
-      if (e.key === "Escape") menuPopup.style.display = "block";
+      if (e.key === "Escape") openMenu();
     });
-    document.addEventListener("keyup", e => {
+    window.addEventListener("keyup", e => {
       keys[e.key.toLowerCase()] = false;
     });
 
     function handleMovement() {
-      if (keys["z"]) player.y -= 2;
-      if (keys["s"]) player.y += 2;
-      if (keys["q"]) player.x -= 2;
-      if (keys["d"]) player.x += 2;
+      const speed = 3;
+      if (keys["z"]) player.y -= speed;
+      if (keys["s"]) player.y += speed;
+      if (keys["q"]) player.x -= speed;
+      if (keys["d"]) player.x += speed;
     }
 
-    menuBtn.addEventListener("click", () => {
+    function gameLoop() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      drawInfiniteMap();
+
+      // Draw player (fixed on center screen)
+      const playerScreenX = canvas.width / 2 - player.size / 2;
+      const playerScreenY = canvas.height / 2 - player.size / 2;
+
+      ctx.fillStyle = "red";
+      ctx.fillRect(playerScreenX, playerScreenY, player.size, player.size);
+
+      handleMovement();
+      updateFirebaseCoords();
+
+      coordsEl.textContent = `X: ${player.x.toFixed(2)} Y: ${player.y.toFixed(2)}`;
+
+      requestAnimationFrame(gameLoop);
+    }
+
+    // Menu fonctionnel
+    function openMenu() {
       menuPopup.style.display = "block";
-    });
-
-    resumeBtn.addEventListener("click", () => {
+      menuBtn.style.display = "none";
+    }
+    function closeMenu() {
       menuPopup.style.display = "none";
-    });
+      if (isMobile) menuBtn.style.display = "block";
+    }
 
-    quitBtn.addEventListener("click", async () => {
+    menuBtn.onclick = openMenu;
+    resumeBtn.onclick = () => closeMenu();
+    quitBtn.onclick = async () => {
       updateFirebaseCoords();
       await db.ref(`users/${uid}/playing`).set("Ecran d'accueil");
       await db.ref(`presence/${uid}`).set(false);
       location.href = "play.html";
-    });
+    };
 
-    // Quand on quitte la page, on met la présence à false et playing = Ecran d'accueil
+    // Si mobile, bouton menu visible dès le départ
+    if (isMobile) menuBtn.style.display = "block";
+
+    // Gestion presence Firebase à la fermeture
     window.addEventListener("beforeunload", async () => {
       await db.ref(`presence/${uid}`).set(false);
       await db.ref(`users/${uid}/playing`).set("Ecran d'accueil");
