@@ -103,6 +103,17 @@
   </div>
 
   <canvas id="gameCanvas"></canvas>
+  <!-- Affichage des cœurs -->
+<div id="heartsContainer" style="position:fixed; top:10px; right:10px; z-index:20;"></div>
+
+<!-- Écran de mort -->
+<div id="deathScreen" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:black; color:white; font-family:'Press Start 2P'; z-index:1000; justify-content:center; align-items:center; flex-direction:column;">
+  <p style="font-size: 20px; margin-bottom: 20px;">Vous avez succombé.</p>
+  <button id="respawnBtn">Réapparaître</button>
+  <button id="exploreBtn">Explorer</button>
+  <button id="quitBtnTop">Quitter</button>
+</div>
+
 <script>
 const firebaseConfig = {
   apiKey: "AIzaSyBPq6Wfxzq02MfK69BFxHm9_FUjDGTmAcw",
@@ -126,6 +137,10 @@ const resumeBtn = document.getElementById("resumeBtn");
 const quitBtn = document.getElementById("quitBtn");
 
 let player = { x: 100, y: 100, size: 20 };
+let maxHearts = 10;
+let hearts = 10;
+let uniqueMode = false;
+let isDead = false;
 let uid = "";
 let currentWorld = "";
 let inGameMinutes = 0;
@@ -133,6 +148,9 @@ let currentDay = 1;
 let treePositions = [];
 const treeImg = new Image();
 treeImg.src = "tree.png";
+const heartImg = new Image();
+heartImg.src = "heart.png";
+
 
 const timeDisplay = document.createElement("div");
 timeDisplay.style.position = "fixed";
@@ -197,38 +215,21 @@ function updateLighting() {
 
   return opacity;
 }
-
-auth.onAuthStateChanged(async user => {
-  if (!user) return location.href = "index.html";
-  uid = user.uid;
-  document.getElementById("loading").style.display = "flex";
-
-  const playingSnap = await db.ref(`users/${uid}/playing`).once("value");
-  currentWorld = playingSnap.val();
-  if (!currentWorld || currentWorld === "Ecran d'accueil") return location.href = "play.html";
-
-  const coordsSnap = await db.ref(`users/${uid}/worlds/${currentWorld}/playerinfos/coords`).once("value");
-  if (coordsSnap.exists()) {
-    const val = coordsSnap.val();
-    player.x = parseFloat(val.x) || 100;
-    player.y = parseFloat(val.y) || 100;
+function updateHeartsUI() {
+  const container = document.getElementById("heartsContainer");
+  container.innerHTML = "";
+  if (uniqueMode || isDead) return;
+  for (let i = 0; i < maxHearts; i++) {
+    const heart = document.createElement("img");
+    heart.src = "heart.png";
+    heart.style.width = "20px";
+    heart.style.margin = "2px";
+    heart.style.filter = i < hearts ? "none" : "grayscale(100%) brightness(30%)";
+    container.appendChild(heart);
   }
+}
 
-  const dateSnap = await db.ref(`users/${uid}/worlds/${currentWorld}/date`).once("value");
-  if (dateSnap.exists()) {
-    const [h, m] = dateSnap.val().split(":").map(Number);
-    inGameMinutes = h * 60 + m;
-  }
 
-  const daySnap = await db.ref(`users/${uid}/worlds/${currentWorld}/day`).once("value");
-  if (daySnap.exists()) currentDay = daySnap.val();
-
-  await loadOrGenerateTrees();
-  await db.ref(`presence/${uid}`).set(true);
-
-  document.getElementById("loading").style.display = "none";
-  requestAnimationFrame(gameLoop);
-});
 
 async function loadOrGenerateTrees() {
   const treesRef = db.ref(`users/${uid}/worlds/${currentWorld}/worldinfo/trees`);
@@ -251,6 +252,49 @@ async function loadOrGenerateTrees() {
     }
   }
 }
+let mobs = [];
+const mobSize = 20;
+const mobSpeed = 1;
+let damageCooldown = 0;
+
+function spawnMobs() {
+  mobs = [];
+  for (let i = 0; i < 60; i++) {
+    mobs.push({
+      x: player.x + Math.random() * 1000 - 500,
+      y: player.y + Math.random() * 1000 - 500
+    });
+  }
+}
+function handleDeath() {
+  isDead = true;
+  document.getElementById("deathScreen").style.display = "flex";
+  document.getElementById("respawnBtn").style.display = uniqueMode ? "none" : "inline-block";
+  document.getElementById("exploreBtn").style.display = uniqueMode ? "inline-block" : "none";
+  document.getElementById("quitBtnTop").style.display = "inline-block";
+}
+document.getElementById("respawnBtn").onclick = () => {
+  hearts = maxHearts;
+  player.x = 100;
+  player.y = 100;
+  isDead = false;
+  updateHeartsUI();
+  document.getElementById("deathScreen").style.display = "none";
+  db.ref(`users/${uid}/worlds/${currentWorld}/playerinfos/hearts`).set(hearts);
+};
+
+document.getElementById("exploreBtn").onclick = () => {
+  player.x = 100;
+  player.y = 100;
+  isDead = false;
+  uniqueMode = true;
+  updateHeartsUI();
+  document.getElementById("deathScreen").style.display = "none";
+};
+
+document.getElementById("quitBtnTop").onclick = () => {
+  location.href = "play.html";
+};
 
 function updateFirebaseCoords() {
   db.ref(`users/${uid}/worlds/${currentWorld}/playerinfos/coords`).set({
@@ -348,62 +392,107 @@ window.addEventListener("beforeunload", async () => {
   await db.ref(`presence/${uid}`).set(false);
   await db.ref(`users/${uid}/playing`).set("Ecran d'accueil");
 });
+
+  
 auth.onAuthStateChanged(async user => {
   if (!user) {
-    // Pas connecté, on renvoie à la page de connexion
-    return location.href = "index.html";
+    location.href = "index.html";
+    return;
   }
 
   uid = user.uid;
   document.getElementById("loading").style.display = "flex";
 
-  try {
-    // Récupérer le monde courant dans lequel joue l'utilisateur
-    const playingSnap = await db.ref(`users/${uid}/playing`).once("value");
-    currentWorld = playingSnap.val();
-
-    // Si pas de monde ou "Ecran d'accueil", renvoyer vers la page play
-    if (!currentWorld || currentWorld === "Ecran d'accueil") {
-      return location.href = "play.html";
-    }
-
-    // Charger la position du joueur
-    const coordsSnap = await db.ref(`users/${uid}/worlds/${currentWorld}/playerinfos/coords`).once("value");
-    if (coordsSnap.exists()) {
-      const val = coordsSnap.val();
-      player.x = parseFloat(val.x) || 100;
-      player.y = parseFloat(val.y) || 100;
-    }
-
-    // Charger la date / heure du jeu
-    const dateSnap = await db.ref(`users/${uid}/worlds/${currentWorld}/date`).once("value");
-    if (dateSnap.exists()) {
-      const [h, m] = dateSnap.val().split(":").map(Number);
-      inGameMinutes = h * 60 + m;
-    }
-
-    // Charger le jour actuel
-    const daySnap = await db.ref(`users/${uid}/worlds/${currentWorld}/day`).once("value");
-    if (daySnap.exists()) {
-      currentDay = daySnap.val();
-    }
-
-    // Charger ou générer les positions des arbres
-    await loadOrGenerateTrees();
-
-    // Marquer l'utilisateur comme présent
-    await db.ref(`presence/${uid}`).set(true);
-
-  } catch (error) {
-    console.error("Erreur lors du chargement des données :", error);
-    alert("Une erreur est survenue lors du chargement du jeu.");
-    return location.href = "play.html";
+  const playingSnap = await db.ref(`users/${uid}/playing`).once("value");
+  currentWorld = playingSnap.val();
+  if (!currentWorld || currentWorld === "Ecran d'accueil") {
+    location.href = "play.html";
+    return;
   }
 
-  // Tout est prêt, masquer le chargement et démarrer le jeu
+  const coordsSnap = await db.ref(`users/${uid}/worlds/${currentWorld}/playerinfos/coords`).once("value");
+  if (coordsSnap.exists()) {
+    const val = coordsSnap.val();
+    player.x = parseFloat(val.x) || 100;
+    player.y = parseFloat(val.y) || 100;
+  } else {
+    player.x = 100;
+    player.y = 100;
+  }
+
+  const dateSnap = await db.ref(`users/${uid}/worlds/${currentWorld}/date`).once("value");
+  if (dateSnap.exists()) {
+    const [h, m] = dateSnap.val().split(":").map(Number);
+    inGameMinutes = h * 60 + m;
+  } else {
+    inGameMinutes = 12 * 60;
+  }
+
+  const daySnap = await db.ref(`users/${uid}/worlds/${currentWorld}/day`).once("value");
+  if (daySnap.exists()) currentDay = daySnap.val();
+
+  const heartsSnap = await db.ref(`users/${uid}/worlds/${currentWorld}/playerinfos/hearts`).once("value");
+  if (heartsSnap.exists()) {
+    hearts = heartsSnap.val();
+  } else {
+    hearts = maxHearts;
+    await db.ref(`users/${uid}/worlds/${currentWorld}/playerinfos/hearts`).set(hearts);
+  }
+
+  const uniqueSnap = await db.ref(`users/${uid}/worlds/${currentWorld}/unique`).once("value");
+  uniqueMode = uniqueSnap.exists() && uniqueSnap.val() === true;
+
+  await loadOrGenerateTrees();
+  await db.ref(`presence/${uid}`).set(true);
+
+  updateHeartsUI();
+
   document.getElementById("loading").style.display = "none";
+
   requestAnimationFrame(gameLoop);
 });
+
+
+  
+function drawMobs() {
+  const hour = Math.floor(inGameMinutes / 60) % 24;
+  const isNight = hour >= 17 || hour < 8;
+
+  if (isNight && !uniqueMode && !isDead && mobs.length === 0) {
+    spawnMobs();
+  }
+
+  if (!isNight || uniqueMode || isDead) return;
+
+  for (let mob of mobs) {
+    const dx = player.x - mob.x;
+    const dy = player.y - mob.y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    const screenX = canvas.width / 2 + (mob.x - player.x);
+    const screenY = canvas.height / 2 + (mob.y - player.y);
+
+    if (dist < 500) {
+      const angle = Math.atan2(dy, dx);
+      mob.x += Math.cos(angle) * mobSpeed;
+      mob.y += Math.sin(angle) * mobSpeed;
+    }
+
+    ctx.fillStyle = "blue";
+    ctx.fillRect(screenX - mobSize / 2, screenY - mobSize / 2, mobSize, mobSize);
+
+    if (dist < mobSize + player.size / 2) {
+      const now = Date.now();
+      if (now - damageCooldown > 1000) {
+        damageCooldown = now;
+        hearts = Math.max(0, hearts - 1);
+        updateHeartsUI();
+        db.ref(`users/${uid}/worlds/${currentWorld}/playerinfos/hearts`).set(hearts);
+        if (hearts <= 0) handleDeath();
+      }
+    }
+  }
+}
+
 </script>
   
 </body>
