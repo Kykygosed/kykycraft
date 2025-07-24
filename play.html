@@ -211,6 +211,14 @@ body {
   </div>
 </div>
 
+<div id="pseudoModal" style="display:none; justify-content:center; align-items:center; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.8); z-index:9999;">
+  <div style="background:#222; padding:20px; border:4px solid #555; width:90%; max-width:400px; text-align:center;">
+    <h2 style="font-size:12px; margin-bottom:20px;">Choisis ton pseudo</h2>
+    <input id="chosenPseudo" type="text" placeholder="Ton pseudo..." style="font-family:'Press Start 2P'; width:100%; padding:10px; margin-bottom:10px;">
+    <button onclick="savePseudo()" style="padding:10px 20px; background:green; border:none; color:white; cursor:pointer; font-family:'Press Start 2P';">Valider</button>
+    <div id="pseudoError" style="color:red; margin-top:10px; font-size:10px;"></div>
+  </div>
+</div>
 
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
@@ -229,12 +237,46 @@ firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.database();
 
+function savePseudo() {
+  const input = document.getElementById('chosenPseudo');
+  const error = document.getElementById('pseudoError');
+  const pseudo = input.value.trim();
+
+  if (!pseudo || pseudo.length < 3) {
+    error.textContent = "Pseudo trop court.";
+    return;
+  }
+
+  const user = auth.currentUser;
+  if (!user) return;
+
+  // Vérifie unicité (optionnel)
+  db.ref("users").orderByChild("username").equalTo(pseudo).once("value", snapshot => {
+    if (snapshot.exists()) {
+      error.textContent = "Ce pseudo est déjà utilisé.";
+    } else {
+      db.ref('users/' + user.uid).update({
+        username: pseudo,
+        playing: 'Écran d’accueil'
+      }).then(() => {
+        document.getElementById('pseudoModal').style.display = 'none';
+        showWorlds(user.uid);
+        loadFriends(user.uid);
+        db.ref('presence/' + user.uid).set(true);
+        db.ref('presence/' + user.uid).onDisconnect().set(false);
+      });
+    }
+  });
+}
+
+    
 function switchTab(tab) {
   document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
   document.querySelectorAll('.content').forEach(el => el.style.display = 'none');
   document.querySelector('.tab[onclick*="'+tab+'"]').classList.add('active');
   document.getElementById(tab).style.display = 'block';
 }
+
 
 function showWorlds(uid) {
   const worldList = document.getElementById('worldList');
@@ -373,36 +415,27 @@ function loadFriends(uid) {
 
 auth.onAuthStateChanged(user => {
   if (user) {
-    const pseudo = user.email.split('@')[0];
     const userRef = db.ref('users/' + user.uid);
-    userRef.update({ username: pseudo, playing: 'Écran d’accueil' });
 
-    db.ref('presence/' + user.uid).set(true);
-    db.ref('presence/' + user.uid).onDisconnect().set(false);
+    userRef.once('value').then(snapshot => {
+      const data = snapshot.val();
 
-    showWorlds(user.uid);
-    loadFriends(user.uid);
+      if (!data || !data.username) {
+        document.getElementById('pseudoModal').style.display = 'flex';
+      } else {
+        showWorlds(user.uid);
+        loadFriends(user.uid);
+        db.ref('users/' + user.uid + '/playing').set("Écran d’accueil");
+        db.ref('presence/' + user.uid).set(true);
+        db.ref('presence/' + user.uid).onDisconnect().set(false);
+      }
+    });
   } else {
-    const pseudo = prompt("Entrez votre pseudo :");
-    const email = `${pseudo}@kykycraft.com`;
-    const password = prompt("Mot de passe :");
-
-    auth.signInWithEmailAndPassword(email, password)
-      .then(cred => {
-        db.ref('users/' + cred.user.uid).update({ username: pseudo, playing: 'Écran d’accueil' });
-        showWorlds(cred.user.uid);
-        loadFriends(cred.user.uid);
-      })
-      .catch(() => {
-        auth.createUserWithEmailAndPassword(email, password)
-          .then(cred => {
-            db.ref('users/' + cred.user.uid).set({ username: pseudo, playing: 'Écran d’accueil' });
-            showWorlds(cred.user.uid);
-            loadFriends(cred.user.uid);
-          });
-      });
+    // L'utilisateur n'est pas connecté, redirection ou rien selon ton usage
+    window.location.href = 'index.html';
   }
 });
+
 
   </script>
 </body>
