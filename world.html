@@ -363,6 +363,8 @@ function gameLoop() {
     }
   }
 
+  drawMobs();
+
   coordsEl.textContent = `X: ${player.x.toFixed(2)} Y: ${player.y.toFixed(2)}`;
   timeDisplay.textContent = `Jour ${currentDay} - ${getGameTimeStr()}`;
 
