@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Radio AM WebRTC</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      background: #111;
+      color: #fff;
+      text-align: center;
+      padding: 50px;
+    }
+
+    #ptt {
+      padding: 20px;
+      font-size: 18px;
+      background: red;
+      border: none;
+      color: white;
+      border-radius: 10px;
+      cursor: pointer;
+    }
+
+    input, button {
+      padding: 10px;
+      font-size: 16px;
+      margin: 5px;
+    }
+  </style>
+</head>
+<body>
+
+  <div id="start-screen">
+    <button id="start-btn">Commencer</button>
+  </div>
+
+  <div id="main" style="display:none;">
+    <p>Bienvenue, <span id="pseudo-display"></span></p>
+    <input type="text" id="frequency" placeholder="Fréquence (ex: 118.5)">
+    <button id="connect-frequency">Connexion</button>
+    <br><br>
+    <button id="ptt">Appuyer pour parler</button>
+  </div>
+
+  <!-- Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js"></script>
+
+  <script>
+    // Config Firebase
+    const firebaseConfig = {
+      apiKey: "AIzaSyBPq6Wfxzq02MfK69BFxHm9_FUjDGTmAcw",
+      authDomain: "kykychat-24c7f.firebaseapp.com",
+      databaseURL: "https://kykychat-24c7f-default-rtdb.firebaseio.com",
+      projectId: "kykychat-24c7f",
+      storageBucket: "kykychat-24c7f.appspot.com",
+      messagingSenderId: "342562811927",
+      appId: "1:342562811927:web:0fed1e1f511c4fddcfec52"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    let pseudo = "";
+    let frequency = "";
+    let localStream = null;
+    let peers = {};
+    let isTalking = false;
+    let roomRef = null;
+
+    const startBtn = document.getElementById("start-btn");
+    const mainDiv = document.getElementById("main");
+    const pseudoDisplay = document.getElementById("pseudo-display");
+
+    startBtn.onclick = async () => {
+      try {
+        localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        await new Promise((res, rej) => {
+          navigator.geolocation.getCurrentPosition(res, rej);
+        });
+
+        pseudo = prompt("Entrez votre pseudo :");
+        if (!pseudo) return alert("Pseudo requis");
+
+        document.getElementById("start-screen").style.display = "none";
+        mainDiv.style.display = "block";
+        pseudoDisplay.textContent = pseudo;
+      } catch (err) {
+        alert("Permission requise pour continuer.");
+      }
+    };
+
+    document.getElementById("connect-frequency").onclick = async () => {
+      frequency = document.getElementById("frequency").value.trim();
+      if (!frequency) return alert("Fréquence requise");
+
+      await db.ref("users/" + pseudo).set(frequency);
+
+      // Démarre l'écoute
+      db.ref("users").on("value", async snapshot => {
+        const users = snapshot.val() || {};
+        for (const [user, freq] of Object.entries(users)) {
+          if (freq === frequency && user !== pseudo && !peers[user]) {
+            createConnection(user);
+          }
+        }
+      });
+
+      listenForOffers();
+    };
+
+    document.getElementById("ptt").onmousedown = async () => {
+      if (isTalking) return;
+
+      const snap = await db.ref("frequencies/" + frequency).get();
+      if (snap.exists()) {
+        alert("Quelqu’un parle déjà sur cette fréquence !");
+        return;
+      }
+
+      await db.ref("frequencies/" + frequency).set(pseudo);
+      isTalking = true;
+      for (const peer of Object.values(peers)) {
+        localStream.getTracks().forEach(track => {
+          peer.addTrack(track, localStream);
+        });
+      }
+    };
+
+    document.getElementById("ptt").onmouseup = async () => {
+      if (!isTalking) return;
+      isTalking = false;
+      await db.ref("frequencies/" + frequency).remove();
+    };
+
+    function createConnection(remotePseudo) {
+      const peer = new RTCPeerConnection();
+
+      peer.onicecandidate = e => {
+        if (e.candidate) {
+          db.ref(`signals/${remotePseudo}/${pseudo}/candidates`).push(JSON.stringify(e.candidate));
+        }
+      };
+
+      peer.ontrack = e => {
+        const audio = new Audio();
+        audio.srcObject = e.streams[0];
+        audio.play();
+      };
+
+      peers[remotePseudo] = peer;
+
+      peer.createOffer().then(offer => {
+        peer.setLocalDescription(offer);
+        db.ref(`signals/${remotePseudo}/${pseudo}/offer`).set(JSON.stringify(offer));
+      });
+    }
+
+    function listenForOffers() {
+      db.ref(`signals/${pseudo}`).on("child_added", snap => {
+        const remotePseudo = snap.key;
+
+        snap.ref.child("offer").once("value", async s => {
+          if (s.exists()) {
+            const peer = new RTCPeerConnection();
+            peers[remotePseudo] = peer;
+
+            peer.onicecandidate = e => {
+              if (e.candidate) {
+                db.ref(`signals/${remotePseudo}/${pseudo}/candidates`).push(JSON.stringify(e.candidate));
+              }
+            };
+
+            peer.ontrack = e => {
+              const audio = new Audio();
+              audio.srcObject = e.streams[0];
+              audio.play();
+            };
+
+            peer.setRemoteDescription(new RTCSessionDescription(JSON.parse(s.val())));
+            localStream.getTracks().forEach(track => peer.addTrack(track, localStream));
+
+            const answer = await peer.createAnswer();
+            await peer.setLocalDescription(answer);
+            db.ref(`signals/${remotePseudo}/${pseudo}/answer`).set(JSON.stringify(answer));
+
+            // ICE candidates
+            db.ref(`signals/${pseudo}/${remotePseudo}/candidates`).on("child_added", c => {
+              const candidate = new RTCIceCandidate(JSON.parse(c.val()));
+              peer.addIceCandidate(candidate);
+            });
+          }
+        });
+
+        // Réponse de l'autre
+        db.ref(`signals/${pseudo}/${remotePseudo}/answer`).on("value", s => {
+          if (s.exists()) {
+            peers[remotePseudo].setRemoteDescription(new RTCSessionDescription(JSON.parse(s.val())));
+          }
+        });
+
+        // ICE candidates
+        db.ref(`signals/${pseudo}/${remotePseudo}/candidates`).on("child_added", c => {
+          const candidate = new RTCIceCandidate(JSON.parse(c.val()));
+          peers[remotePseudo].addIceCandidate(candidate);
+        });
+      });
+    }
+  </script>
+</body>
+</html>
