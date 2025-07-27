@@ -1,152 +1,93 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8">
-  <title>Carte des vols en direct</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <style>
-    html, body { margin: 0; height: 100%; }
-    #map { height: 100vh; }
-
-    .plane-emoji div {
-      font-size: 18px; /* Plus petit pour mobile */
-      transform-origin: center center;
-    }
-
-    /* Responsivité */
-    @media (max-width: 600px) {
-      .plane-emoji div {
-        font-size: 15px; /* Encore plus petit sur téléphone */
-      }
-    }
-
-    .custom-popup {
-      font-family: Arial, sans-serif;
-      font-size: 14px;
-      line-height: 1.4;
-    }
-
-    .custom-popup h4 {
-      margin: 0 0 5px;
-      font-size: 16px;
-    }
-
-    .custom-popup .info {
-      display: flex;
-      justify-content: space-between;
-      margin-top: 5px;
-    }
-
-    /* Limiter la taille du trajet pour éviter trop de polyline */
-    .flight-path {
-      color: blue;
-      weight: 2;
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flight Radar</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <style>
+        #map { height: 100vh; }
+        #flight-info {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(255, 255, 255, 0.7);
+            padding: 10px;
+            border-radius: 5px;
+            max-width: 300px;
+            display: none;
+        }
+        .flight-details {
+            margin-bottom: 10px;
+        }
+    </style>
 </head>
 <body>
-  <div id="map"></div>
+    <div id="map"></div>
+    <div id="flight-info">
+        <div id="flight-details"></div>
+        <button onclick="closeFlightInfo()">Fermer</button>
+    </div>
 
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script>
-    const map = L.map('map').setView([48.8566, 2.3522], 5);
-    L.tileLayer('https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png', {
-      maxZoom: 19,
-    }).addTo(map);
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <script>
+        const map = L.map('map').setView([48.8566, 2.3522], 5);  // Initialisation sur Paris
 
-    const planeEmoji = "✈️"; // Emoji pour avion
-    const planes = {}; // Garde les avions et leur trajet
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
-    async function fetchFlights() {
-      const res = await fetch('https://opensky-network.org/api/states/all');
-      const data = await res.json();
-      if (!data.states) return;
+        // Fonction pour récupérer les données d'avions en temps réel
+        async function getFlightData() {
+            const response = await fetch('https://opensky-network.org/api/states/all');
+            const data = await response.json();
+            return data.states;  // Tableau des avions
+        }
 
-      const updatedPlanes = {}; // Met à jour les avions visibles
+        // Fonction pour afficher les avions sur la carte
+        function updateAircrafts() {
+            getFlightData().then((flights) => {
+                flights.forEach(flight => {
+                    const [icao24, callsign, lat, lon, alt, vel, heading, originCountry] = flight;
 
-      for (const flight of data.states) {
-        const [
-          icao24, callsign, origin_country, time_position,
-          last_contact, longitude, latitude, baro_altitude,
-          on_ground, velocity, true_track, vertical_rate,
-          sensors, geo_altitude, squawk, spi, position_source, origin, destination
-        ] = flight;
+                    if (!lat || !lon) return; // Ignore les avions sans position valide
 
-        if (!latitude || !longitude) continue;
+                    const marker = L.marker([lat, lon]).addTo(map);
+                    
+                    marker.on('click', () => {
+                        showFlightInfo(flight);  // Affiche les détails de l'avion lorsqu'on clique
+                    });
 
-        const id = icao24;
-        const pos = [latitude, longitude];
-        const heading = true_track || 0;
-        const speed = velocity ? (velocity * 1.94384).toFixed(0) : "N/A";
-        const altitude = geo_altitude ? (geo_altitude * 3.28084).toFixed(0) : "N/A";
-        const duration = last_contact - (time_position || last_contact);
-        const durationMin = Math.floor(duration / 60);
+                    marker.setIcon(L.divIcon({className: 'leaflet-div-icon', html: '✈️'}));
+                });
+            });
+        }
 
-        if (!planes[id]) {
-          // Crée un nouvel avion
-          const marker = L.marker(pos, {
-            icon: L.divIcon({
-              className: 'plane-emoji',
-              html: `<div style="transform: rotate(${heading}deg);">${planeEmoji}</div>`
-            }),
-            rotationAngle: heading,
-            rotationOrigin: 'center center'
-          }).addTo(map);
+        // Fonction pour afficher les détails d'un avion dans le panneau
+        function showFlightInfo(flight) {
+            const [icao24, callsign, lat, lon, alt, vel, heading, originCountry] = flight;
 
-          marker.on('click', () => {
-            const popup = `
-              <div class="custom-popup">
-                <h4>${callsign || 'Inconnu'}<br><small>${origin_country}</small></h4>
-                <div>${origin ? `${origin} - ${origin_country} ✈ ${destination || 'Inconnu'}` : "Départ ✈ Arrivée"}</div>
-                <div class="info">
-                  <span><b>Vitesse:</b> ${speed} kt</span>
-                  <span><b>Altitude:</b> ${altitude} ft</span>
-                </div>
-                <div class="info">
-                  <span><b>Temps vol:</b> ${durationMin} min</span>
-                  <span><b>Est. restant:</b> ~? min</span>
-                </div>
-                <button onclick="showFlightPath('${id}')">Voir le trajet</button>
-              </div>
+            const flightDetails = document.getElementById('flight-details');
+            flightDetails.innerHTML = `
+                <div class="flight-details"><strong>Appel:</strong> ${callsign || 'Inconnu'}</div>
+                <div class="flight-details"><strong>ICAO24:</strong> ${icao24}</div>
+                <div class="flight-details"><strong>Position:</strong> Latitude: ${lat.toFixed(2)}, Longitude: ${lon.toFixed(2)}</div>
+                <div class="flight-details"><strong>Altitude:</strong> ${alt} ft</div>
+                <div class="flight-details"><strong>Vitesse:</strong> ${vel} km/h</div>
+                <div class="flight-details"><strong>Cap:</strong> ${heading}°</div>
+                <div class="flight-details"><strong>Pays d'origine:</strong> ${originCountry}</div>
             `;
-            marker.bindPopup(popup).openPopup();
-          });
 
-          planes[id] = { marker, history: [pos], path: null };
-        } else {
-          const p = planes[id];
-          p.marker.setLatLng(pos);
-          p.marker.setRotationAngle?.(heading);
-          p.history.push(pos);
+            // Affiche le panneau d'informations
+            document.getElementById('flight-info').style.display = 'block';
         }
 
-        updatedPlanes[id] = planes[id]; // Garde l'avion mis à jour
-      }
-
-      // Retire les avions qui ne sont plus visibles
-      for (const id in planes) {
-        if (!updatedPlanes[id]) {
-          planes[id].marker.remove();
-          if (planes[id].path) planes[id].path.remove();
+        // Fonction pour fermer le panneau d'informations
+        function closeFlightInfo() {
+            document.getElementById('flight-info').style.display = 'none';
         }
-      }
 
-      // Met à jour les avions existants
-      Object.assign(planes, updatedPlanes);
-    }
-
-    // Affiche le trajet d'un avion
-    function showFlightPath(id) {
-      const p = planes[id];
-      if (p && p.history.length > 1) {
-        if (p.path) p.path.remove(); // Supprime l'ancien trajet
-        p.path = L.polyline(p.history, { color: 'blue', weight: 2 }).addTo(map);
-      }
-    }
-
-    setInterval(fetchFlights, 5000); // Rafraîchissement tous les 5s
-    fetchFlights();
-  </script>
+        // Mise à jour des avions toutes les 10 secondes
+        setInterval(updateAircrafts, 10000);
+    </script>
 </body>
 </html>
+
