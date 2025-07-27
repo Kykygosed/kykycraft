@@ -12,6 +12,19 @@
     html, body { margin: 0; height: 100%; }
     #map { height: 100vh; }
 
+    /* Emoji Avion plus petit pour les écrans mobiles */
+    .plane-emoji div {
+      font-size: 20px; /* Taille réduite sur mobile */
+      transform-origin: center center;
+    }
+
+    /* Responsivité : plus de marge sur les petits écrans */
+    @media (max-width: 600px) {
+      .plane-emoji div {
+        font-size: 15px; /* encore plus petit sur téléphone */
+      }
+    }
+
     .custom-popup {
       font-family: Arial, sans-serif;
       font-size: 14px;
@@ -54,6 +67,9 @@
 
       const now = Date.now() / 1000;
 
+      // Nouveau tableau pour ne pas recréer les éléments de vol
+      const updatedPlanes = {};
+
       for (const flight of data.states) {
         const [
           icao24, callsign, origin_country, time_position,
@@ -77,7 +93,7 @@
           const marker = L.marker(pos, {
             icon: L.divIcon({
               className: 'plane-emoji',
-              html: `<div style="transform: rotate(${heading}deg); font-size: 30px; line-height: 0;">${planeEmoji}</div>`
+              html: `<div style="transform: rotate(${heading}deg);">${planeEmoji}</div>`
             }),
             rotationAngle: heading,
             rotationOrigin: 'center center'
@@ -105,16 +121,30 @@
 
           planes[id] = { marker, path, history: [pos] };
         } else {
+          // Met à jour le vol existant
           const p = planes[id];
           p.marker.setLatLng(pos);
           p.marker.setRotationAngle?.(heading);
           p.history.push(pos);
           p.path.setLatLngs(p.history);
         }
+
+        updatedPlanes[id] = planes[id]; // Conserve les avions mis à jour
       }
+
+      // Élimine les avions qui ne sont plus présents
+      for (const id in planes) {
+        if (!updatedPlanes[id]) {
+          planes[id].marker.remove(); // Retire les avions non mis à jour
+          planes[id].path.remove();
+        }
+      }
+
+      // Met à jour les avions existants avec les nouveaux vols
+      Object.assign(planes, updatedPlanes);
     }
 
-    setInterval(fetchFlights, 100);
+    setInterval(fetchFlights, 5000); // rafraîchir toutes les 5s sans disparition
     fetchFlights();
   </script>
 </body>
