@@ -4,24 +4,20 @@
   <meta charset="UTF-8">
   <title>Carte des vols en direct</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link 
-    rel="stylesheet" 
-    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-  />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <style>
     html, body { margin: 0; height: 100%; }
     #map { height: 100vh; }
 
-    /* Emoji Avion plus petit pour les écrans mobiles */
     .plane-emoji div {
-      font-size: 20px; /* Taille réduite sur mobile */
+      font-size: 18px; /* Plus petit pour mobile */
       transform-origin: center center;
     }
 
-    /* Responsivité : plus de marge sur les petits écrans */
+    /* Responsivité */
     @media (max-width: 600px) {
       .plane-emoji div {
-        font-size: 15px; /* encore plus petit sur téléphone */
+        font-size: 15px; /* Encore plus petit sur téléphone */
       }
     }
 
@@ -30,14 +26,22 @@
       font-size: 14px;
       line-height: 1.4;
     }
+
     .custom-popup h4 {
       margin: 0 0 5px;
       font-size: 16px;
     }
+
     .custom-popup .info {
       display: flex;
       justify-content: space-between;
       margin-top: 5px;
+    }
+
+    /* Limiter la taille du trajet pour éviter trop de polyline */
+    .flight-path {
+      color: blue;
+      weight: 2;
     }
   </style>
 </head>
@@ -46,29 +50,20 @@
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script>
-    const map = L.map('map', {
-      zoomSnap: 0.1
-    }).setView([48.8566, 2.3522], 5);
-
-    // Carte satellite
+    const map = L.map('map').setView([48.8566, 2.3522], 5);
     L.tileLayer('https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png', {
       maxZoom: 19,
     }).addTo(map);
 
-    // Emoji avion
-    const planeEmoji = "✈️";
-
-    const planes = {}; // {icao24: {marker, path}}
+    const planeEmoji = "✈️"; // Emoji pour avion
+    const planes = {}; // Garde les avions et leur trajet
 
     async function fetchFlights() {
       const res = await fetch('https://opensky-network.org/api/states/all');
       const data = await res.json();
       if (!data.states) return;
 
-      const now = Date.now() / 1000;
-
-      // Nouveau tableau pour ne pas recréer les éléments de vol
-      const updatedPlanes = {};
+      const updatedPlanes = {}; // Met à jour les avions visibles
 
       for (const flight of data.states) {
         const [
@@ -83,13 +78,13 @@
         const id = icao24;
         const pos = [latitude, longitude];
         const heading = true_track || 0;
-        const speed = velocity ? (velocity * 1.94384).toFixed(0) : "N/A"; // m/s to kt
-        const altitude = geo_altitude ? (geo_altitude * 3.28084).toFixed(0) : "N/A"; // m to ft
+        const speed = velocity ? (velocity * 1.94384).toFixed(0) : "N/A";
+        const altitude = geo_altitude ? (geo_altitude * 3.28084).toFixed(0) : "N/A";
         const duration = last_contact - (time_position || last_contact);
         const durationMin = Math.floor(duration / 60);
 
         if (!planes[id]) {
-          // Nouveau vol
+          // Crée un nouvel avion
           const marker = L.marker(pos, {
             icon: L.divIcon({
               className: 'plane-emoji',
@@ -98,8 +93,6 @@
             rotationAngle: heading,
             rotationOrigin: 'center center'
           }).addTo(map);
-
-          const path = L.polyline([pos], { color: 'blue' }).addTo(map);
 
           marker.on('click', () => {
             const popup = `
@@ -114,37 +107,45 @@
                   <span><b>Temps vol:</b> ${durationMin} min</span>
                   <span><b>Est. restant:</b> ~? min</span>
                 </div>
+                <button onclick="showFlightPath('${id}')">Voir le trajet</button>
               </div>
             `;
             marker.bindPopup(popup).openPopup();
           });
 
-          planes[id] = { marker, path, history: [pos] };
+          planes[id] = { marker, history: [pos], path: null };
         } else {
-          // Met à jour le vol existant
           const p = planes[id];
           p.marker.setLatLng(pos);
           p.marker.setRotationAngle?.(heading);
           p.history.push(pos);
-          p.path.setLatLngs(p.history);
         }
 
-        updatedPlanes[id] = planes[id]; // Conserve les avions mis à jour
+        updatedPlanes[id] = planes[id]; // Garde l'avion mis à jour
       }
 
-      // Élimine les avions qui ne sont plus présents
+      // Retire les avions qui ne sont plus visibles
       for (const id in planes) {
         if (!updatedPlanes[id]) {
-          planes[id].marker.remove(); // Retire les avions non mis à jour
-          planes[id].path.remove();
+          planes[id].marker.remove();
+          if (planes[id].path) planes[id].path.remove();
         }
       }
 
-      // Met à jour les avions existants avec les nouveaux vols
+      // Met à jour les avions existants
       Object.assign(planes, updatedPlanes);
     }
 
-    setInterval(fetchFlights, 5000); // rafraîchir toutes les 5s sans disparition
+    // Affiche le trajet d'un avion
+    function showFlightPath(id) {
+      const p = planes[id];
+      if (p && p.history.length > 1) {
+        if (p.path) p.path.remove(); // Supprime l'ancien trajet
+        p.path = L.polyline(p.history, { color: 'blue', weight: 2 }).addTo(map);
+      }
+    }
+
+    setInterval(fetchFlights, 5000); // Rafraîchissement tous les 5s
     fetchFlights();
   </script>
 </body>
