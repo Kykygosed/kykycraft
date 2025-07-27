@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Carte des vols en direct</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link 
+    rel="stylesheet" 
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+  />
+  <style>
+    html, body { margin: 0; height: 100%; }
+    #map { height: 100vh; }
+
+    .custom-popup {
+      font-family: Arial, sans-serif;
+      font-size: 14px;
+      line-height: 1.4;
+    }
+    .custom-popup h4 {
+      margin: 0 0 5px;
+      font-size: 16px;
+    }
+    .custom-popup .info {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 5px;
+    }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+    const map = L.map('map', {
+      zoomSnap: 0.1
+    }).setView([48.8566, 2.3522], 5);
+
+    // Carte satellite
+    L.tileLayer('https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+    }).addTo(map);
+
+    const planeIcon = L.icon({
+      iconUrl: 'plane.png',
+      iconSize: [40, 40],
+      iconAnchor: [20, 20],
+    });
+
+    const planes = {}; // {icao24: {marker, path}}
+
+    async function fetchFlights() {
+      const res = await fetch('https://opensky-network.org/api/states/all');
+      const data = await res.json();
+      if (!data.states) return;
+
+      const now = Date.now() / 1000;
+
+      for (const flight of data.states) {
+        const [
+          icao24, callsign, origin_country, time_position,
+          last_contact, longitude, latitude, baro_altitude,
+          on_ground, velocity, true_track, vertical_rate,
+          sensors, geo_altitude, squawk, spi, position_source
+        ] = flight;
+
+        if (!latitude || !longitude) continue;
+
+        const id = icao24;
+        const pos = [latitude, longitude];
+        const heading = true_track || 0;
+        const speed = velocity ? (velocity * 1.94384).toFixed(0) : "N/A"; // m/s to kt
+        const altitude = geo_altitude ? (geo_altitude * 3.28084).toFixed(0) : "N/A"; // m to ft
+        const duration = last_contact - (time_position || last_contact);
+        const durationMin = Math.floor(duration / 60);
+
+        if (!planes[id]) {
+          // Nouveau vol
+          const marker = L.marker(pos, {
+            icon: planeIcon,
+            rotationAngle: heading,
+            rotationOrigin: 'center center'
+          }).addTo(map);
+
+          const path = L.polyline([pos], { color: 'blue' }).addTo(map);
+
+          marker.on('click', () => {
+            const popup = `
+              <div class="custom-popup">
+                <h4>${callsign || 'Inconnu'}<br><small>${origin_country}</small></h4>
+                <div>${"Départ ✈ Arrivée"}</div>
+                <div class="info">
+                  <span><b>Vitesse:</b> ${speed} kt</span>
+                  <span><b>Altitude:</b> ${altitude} ft</span>
+                </div>
+                <div class="info">
+                  <span><b>Temps vol:</b> ${durationMin} min</span>
+                  <span><b>Est. restant:</b> ~? min</span>
+                </div>
+              </div>
+            `;
+            marker.bindPopup(popup).openPopup();
+          });
+
+          planes[id] = { marker, path, history: [pos] };
+        } else {
+          const p = planes[id];
+          p.marker.setLatLng(pos);
+          p.marker.setRotationAngle?.(heading);
+          p.history.push(pos);
+          p.path.setLatLngs(p.history);
+        }
+      }
+    }
+
+    setInterval(fetchFlights, 5000); // rafraîchir toutes les 5s
+    fetchFlights();
+  </script>
+</body>
+</html>
