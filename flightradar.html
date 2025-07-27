@@ -42,11 +42,8 @@
       maxZoom: 19,
     }).addTo(map);
 
-    const planeIcon = L.icon({
-      iconUrl: 'plane.png',
-      iconSize: [40, 40],
-      iconAnchor: [20, 20],
-    });
+    // Emoji avion
+    const planeEmoji = "✈️";
 
     const planes = {}; // {icao24: {marker, path}}
 
@@ -62,7 +59,7 @@
           icao24, callsign, origin_country, time_position,
           last_contact, longitude, latitude, baro_altitude,
           on_ground, velocity, true_track, vertical_rate,
-          sensors, geo_altitude, squawk, spi, position_source
+          sensors, geo_altitude, squawk, spi, position_source, origin, destination
         ] = flight;
 
         if (!latitude || !longitude) continue;
@@ -78,7 +75,10 @@
         if (!planes[id]) {
           // Nouveau vol
           const marker = L.marker(pos, {
-            icon: planeIcon,
+            icon: L.divIcon({
+              className: 'plane-emoji',
+              html: `<div style="transform: rotate(${heading}deg); font-size: 30px; line-height: 0;">${planeEmoji}</div>`
+            }),
             rotationAngle: heading,
             rotationOrigin: 'center center'
           }).addTo(map);
@@ -89,7 +89,7 @@
             const popup = `
               <div class="custom-popup">
                 <h4>${callsign || 'Inconnu'}<br><small>${origin_country}</small></h4>
-                <div>${"Départ ✈ Arrivée"}</div>
+                <div>${origin ? `${origin} - ${origin_country} ✈ ${destination || 'Inconnu'}` : "Départ ✈ Arrivée"}</div>
                 <div class="info">
                   <span><b>Vitesse:</b> ${speed} kt</span>
                   <span><b>Altitude:</b> ${altitude} ft</span>
@@ -114,7 +114,7 @@
       }
     }
 
-    setInterval(fetchFlights, 5000); // rafraîchir toutes les 5s
+    setInterval(fetchFlights, 100);
     fetchFlights();
   </script>
 </body>
