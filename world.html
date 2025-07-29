@@ -270,29 +270,84 @@ function updateHeartsUI() {
   }
 }
 
+let holdTimer = null;
 
+function startHoldTimer(treeKey, treePos) {
+  holdTimer = setTimeout(() => {
+    breakTree(treeKey, treePos);
+  }, 1500); // 1.5 secondes d'appui long
+}
+
+function cancelHoldTimer() {
+  clearTimeout(holdTimer);
+  holdTimer = null;
+}
+
+async function breakTree(treeKey, treePos) {
+  // Supprime l'arbre dans Firebase
+  await firebase.database().ref(`users/${UUID}/worlds/${worldName}/worldinfos/trees/${treeKey}`).remove();
+
+  // Remplace l'arbre par du bois sur ta map localement
+  placeWoodAt(treePos);
+}
+  
+function placeWoodAt(pos) {
+  // ajoute dans ta structure d’état locale ou dans Firebase (optionnel)
+  setMapObjects(prev => ({ ...prev, [posKey(pos)]: { type: "wood" } }));
+}
+
+
+let treePositions = {}; // stockera les arbres sous la forme { clé: {x, y} }
 
 async function loadOrGenerateTrees() {
   const treesRef = db.ref(`users/${uid}/worlds/${currentWorld}/worldinfo/trees`);
   const snap = await treesRef.once("value");
 
   if (snap.exists()) {
-    treePositions = Object.values(snap.val());
+    treePositions = snap.val(); // on garde l'objet avec clés + positions
   } else {
-    const positions = [];
+    const positions = {};
     const baseX = player.x;
     const baseY = player.y;
     for (let i = 0; i < 60; i++) {
-      const x = baseX + Math.random() * 1000 - 500;
-      const y = baseY + Math.random() * 1000 - 500;
-      positions.push({ x: Math.round(x), y: Math.round(y) });
+      const x = Math.round(baseX + Math.random() * 1000 - 500);
+      const y = Math.round(baseY + Math.random() * 1000 - 500);
+      positions[`${x}_${y}`] = { x, y };
+      await treesRef.child(`${x}_${y}`).set({ x, y });
     }
     treePositions = positions;
-    for (let i = 0; i < positions.length; i++) {
-      await treesRef.child(`${positions[i].x}_${positions[i].y}`).set(positions[i]);
-    }
+  }
+
+  displayTrees(treePositions);
+}
+function displayTrees(treesData) {
+  const worldContainer = document.getElementById('world-container');
+  worldContainer.innerHTML = ''; // vide la map
+
+  for (const [treeKey, pos] of Object.entries(treesData)) {
+    const btn = document.createElement('button');
+    btn.className = 'tree-button';
+
+    btn.style.position = 'absolute';
+    btn.style.left = pos.x * TILE_SIZE + 'px';
+    btn.style.top = pos.y * TILE_SIZE + 'px';
+    btn.style.width = TILE_SIZE + 'px';
+    btn.style.height = TILE_SIZE + 'px';
+    btn.style.backgroundImage = 'url(tree.png)';
+    btn.style.backgroundSize = 'cover';
+    btn.style.border = 'none';
+    btn.style.cursor = 'pointer';
+
+    btn.onmousedown = () => startHoldTimer(treeKey, pos);
+    btn.onmouseup = cancelHoldTimer;
+    btn.onmouseleave = cancelHoldTimer;
+
+    btn.onclick = () => collectWoodIfClose(treeKey, pos);
+
+    worldContainer.appendChild(btn);
   }
 }
+
 let mobs = [];
 const mobSize = 20;
 const mobSpeed = 1;
