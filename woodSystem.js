@@ -1,112 +1,102 @@
-// === Variables globales ===
-let heldTree = null;
-let holdStartTime = 0;
-const holdDuration = 1500; // en ms
-let droppedItems = [];
-const woodImg = new Image();
-woodImg.src = "wood.png";
-const canvas = document.getElementById("gameCanvas");
-const ctx = canvas.getContext("2d");
+// woodSystem.js
 
+// Supposé que tu as déjà firebase initialisé et les variables suivantes définies :
+// - userId
+// - worldName
+// - canvas (ton <canvas id="gameCanvas">)
+// - hotbarRef (référence Firebase vers users/userId/worlds/worldName/hotbar)
 
-// === Couper un arbre si on reste appuyé ===
+const db = firebase.database();
+const treeRef = db.ref(`users/${userId}/worlds/${worldName}/worldinfos/trees`);
+
+const treePositions = []; // [ { x, y } ]
+const droppedWoods = [];  // [ { x, y } ]
+
 canvas.addEventListener("mousedown", (e) => {
-  const rect = canvas.getBoundingClientRect();
-  const mouseX = e.clientX - rect.left;
-  const mouseY = e.clientY - rect.top;
-
-  for (let tree of treePositions) {
-    const screenX = canvas.width / 2 + (tree.x - player.x);
-    const screenY = canvas.height / 2 + (tree.y - player.y);
-
-    const dist = Math.hypot(mouseX - screenX, mouseY - screenY);
-    if (dist < 32) {
-      heldTree = tree;
-      holdStartTime = Date.now();
-      break;
-    }
+  const { offsetX, offsetY } = e;
+  const tree = getTreeAt(offsetX, offsetY);
+  if (tree) {
+    setTimeout(() => {
+      removeTree(tree);
+      dropWoodAt(tree.x, tree.y);
+    }, 1000); // reste appuyé 1s
   }
 });
 
-canvas.addEventListener("mouseup", () => {
-  heldTree = null;
+canvas.addEventListener("click", (e) => {
+  const { offsetX, offsetY } = e;
+  const wood = getWoodAt(offsetX, offsetY);
+  if (wood) {
+    collectWood(wood);
+  }
 });
 
-// === Fonction pour supprimer un arbre et laisser du bois ===
-function cutTree(tree) {
-  const key = `${tree.x}_${tree.y}`;
-  db.ref(`users/${uid}/worlds/${currentWorld}/worldinfo/trees/${key}`).remove();
-  treePositions = treePositions.filter(t => t !== tree);
+function getTreeAt(x, y) {
+  return treePositions.find(tree => Math.abs(tree.x - x) < 20 && Math.abs(tree.y - y) < 20);
+}
 
-  droppedItems.push({
-    type: "bois",
-    x: tree.x,
-    y: tree.y
+function removeTree(tree) {
+  treeRef.orderByChild("x").equalTo(tree.x).once("value", (snap) => {
+    snap.forEach(child => {
+      if (child.val().y === tree.y) {
+        child.ref.remove();
+      }
+    });
+  });
+  const idx = treePositions.indexOf(tree);
+  if (idx > -1) treePositions.splice(idx, 1);
+}
+
+function dropWoodAt(x, y) {
+  droppedWoods.push({ x, y });
+  drawDroppedWoods();
+}
+
+function getWoodAt(x, y) {
+  return droppedWoods.find(w => Math.abs(w.x - x) < 20 && Math.abs(w.y - y) < 20);
+}
+
+function collectWood(wood) {
+  hotbarRef.once("value", snap => {
+    const data = snap.val() || {};
+    let found = false;
+
+    for (let i = 1; i <= 5; i++) {
+      const slot = data[i];
+      if (slot?.startsWith("bois")) {
+        const match = slot.match(/\((\d+)\)/);
+        const count = match ? parseInt(match[1]) + 1 : 2;
+        data[i] = `bois (${count})`;
+        found = true;
+        break;
+      }
+    }
+
+    if (!found) {
+      for (let i = 1; i <= 5; i++) {
+        if (!data[i] || data[i] === "EMPTY") {
+          data[i] = "bois (1)";
+          break;
+        }
+      }
+    }
+
+    hotbarRef.set(data);
+    const idx = droppedWoods.indexOf(wood);
+    if (idx > -1) droppedWoods.splice(idx, 1);
+    drawDroppedWoods();
   });
 }
 
-// === Ramasser un bois au sol ===
-canvas.addEventListener("click", async (e) => {
-  const rect = canvas.getBoundingClientRect();
-  const mouseX = e.clientX - rect.left;
-  const mouseY = e.clientY - rect.top;
-
-  for (let i = 0; i < droppedItems.length; i++) {
-    const item = droppedItems[i];
-    const screenX = canvas.width / 2 + (item.x - player.x);
-    const screenY = canvas.height / 2 + (item.y - player.y);
-    const dist = Math.hypot(mouseX - screenX, mouseY - screenY);
-    const distFromPlayer = Math.hypot(item.x - player.x, item.y - player.y);
-
-    if (dist < 32 && distFromPlayer < 50) {
-      await addItemToHotbar("bois");
-      droppedItems.splice(i, 1);
-      break;
-    }
-  }
-});
-
-// === Ajout dans la hotbar avec stacking ===
-async function addItemToHotbar(itemName) {
-  const hotbarRef = db.ref(`users/${uid}/worlds/${currentWorld}/playerinfos/hotbar`);
-  const snap = await hotbarRef.once("value");
-  let hotbar = snap.val();
-
-  for (let slot = 1; slot <= 5; slot++) {
-    const val = hotbar[slot];
-    if (val && val.startsWith(itemName)) {
-      let count = parseInt(val.match(/\((\d+)\)/)?.[1]) || 1;
-      count++;
-      hotbar[slot] = `${itemName} (${count})`;
-      await hotbarRef.set(hotbar);
-      return;
-    }
-  }
-
-  for (let slot = 1; slot <= 5; slot++) {
-    if (!hotbar[slot] || hotbar[slot] === "EMPTY") {
-      hotbar[slot] = `${itemName} (1)`;
-      await hotbarRef.set(hotbar);
-      return;
-    }
-  }
-
-  alert("Inventaire plein !");
+function drawDroppedWoods() {
+  const ctx = canvas.getContext("2d");
+  // Appelle d’abord drawWorld() pour ne pas dessiner par-dessus les arbres
+  drawWorld();
+  droppedWoods.forEach(wood => {
+    const img = new Image();
+    img.src = "wood.png";
+    img.onload = () => ctx.drawImage(img, wood.x - 16, wood.y - 16, 32, 32);
+  });
 }
 
-// === Dessiner les bois au sol ===
-function drawDroppedItems() {
-  for (let item of droppedItems) {
-    const screenX = canvas.width / 2 + (item.x - player.x);
-    const screenY = canvas.height / 2 + (item.y - player.y);
-    ctx.drawImage(woodImg, screenX - 16, screenY - 16, 32, 32);
-  }
-}
-
-// === Appelle ceci dans ta gameLoop() ===
-function handleHeldTree() {
-  if (heldTree && Date.now() - holdStartTime >= holdDuration) {
-    cutTree(heldTree);
-    heldTree = null;
-  }
-}
+// Si tu as déjà une fonction pour dessiner le monde, appelle drawDroppedWoods dedans aussi.
