@@ -291,6 +291,9 @@ async function loadOrGenerateTrees() {
     }
   }
 }
+await loadOrGenerateTrees();
+startTreeProximityDetection();
+
 let mobs = [];
 const mobSize = 20;
 const mobSpeed = 1;
@@ -461,6 +464,7 @@ function closeMenu() {
   menuPopup.style.display = "none";
   if (isMobile) menuBtn.style.display = "block";
 }
+
 menuBtn.onclick = openMenu;
 resumeBtn.onclick = () => closeMenu();
 quitBtn.onclick = async () => {
@@ -476,6 +480,77 @@ window.addEventListener("beforeunload", async () => {
   await db.ref(`presence/${uid}`).set(false);
   await db.ref(`users/${uid}/playing`).set("Ecran d'accueil");
 });
+
+function breakTree(treeElement, treeData) {
+  const uuid = currentUser.uid;
+  const worldName = currentWorld;
+  const treeRef = ref(db, `users/${uuid}/worlds/${worldName}/worldinfos/trees/${treeData.id}`);
+
+  remove(treeRef); // Supprime de Firebase
+  treeElement.remove(); // Supprime du DOM
+  dropWood(treeData.x, treeData.y); // Fait apparaître du bois
+}
+
+function dropWood(x, y) {
+  const wood = document.createElement('img');
+  wood.src = 'wood.png';
+  wood.className = 'dropped-wood';
+  wood.style.position = 'absolute';
+  wood.style.left = `${x}px`;
+  wood.style.top = `${y}px`;
+  wood.dataset.x = x;
+  wood.dataset.y = y;
+
+  document.body.appendChild(wood);
+
+  wood.addEventListener('click', () => {
+    const dx = playerX - x;
+    const dy = playerY - y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+
+    if (dist < 50) {
+      addWoodToHotbar();
+      wood.remove();
+    }
+  });
+}
+
+function addWoodToHotbar() {
+  const uuid = currentUser.uid;
+  const worldName = currentWorld;
+  const hotbarRef = ref(db, `users/${uuid}/worlds/${worldName}/hotbar`);
+
+  get(hotbarRef).then(snapshot => {
+    const hotbar = snapshot.val() || {};
+    let updated = false;
+
+    for (let slot in hotbar) {
+      if (hotbar[slot].startsWith("bois")) {
+        const match = hotbar[slot].match(/\((\d+)\)/);
+        let count = match ? parseInt(match[1]) : 1;
+        count++;
+        hotbar[slot] = `bois (${count})`;
+        updated = true;
+        break;
+      }
+    }
+
+    if (!updated) {
+      for (let i = 1; i <= 9; i++) {
+        const key = `slot${i}`;
+        if (!hotbar[key] || hotbar[key] === "") {
+          hotbar[key] = "bois (1)";
+          updated = true;
+          break;
+        }
+      }
+    }
+
+    if (updated) {
+      set(hotbarRef, hotbar);
+    }
+  });
+}
 
   
 auth.onAuthStateChanged(async user => {
@@ -594,6 +669,40 @@ auth.onAuthStateChanged(async user => {
 
   requestAnimationFrame(gameLoop);
 });
+function startTreeProximityDetection() {
+  setInterval(() => {
+    // pour chaque arbre chargé dans treePositions
+    treePositions.forEach(pos => {
+      const treeElement = document.querySelector(`.tree[data-id="${pos.x}_${pos.y}"]`);
+      if (!treeElement) return;
+
+      const dx = player.x - pos.x;
+      const dy = player.y - pos.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+
+      let breakBtn = treeElement.querySelector('.break-button');
+
+      if (dist < 50) {
+        if (!breakBtn) {
+          breakBtn = document.createElement('button');
+          breakBtn.className = 'break-button';
+          breakBtn.textContent = 'Casser';
+          breakBtn.style.position = 'absolute';
+          breakBtn.style.left = '40px';
+          breakBtn.style.top = '-20px';
+
+          breakBtn.addEventListener('click', () => {
+            breakTree(treeElement, pos.x, pos.y);
+          });
+
+          treeElement.appendChild(breakBtn);
+        }
+      } else {
+        if (breakBtn) breakBtn.remove();
+      }
+    });
+  }, 200);
+}
 
 
 
