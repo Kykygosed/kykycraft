@@ -84,6 +84,30 @@
     #menuPopup button:hover {
       background: #00cc00;
     }
+    #hotbar {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 10px;
+  z-index: 15;
+}
+
+.hotbar-slot {
+  width: 50px;
+  height: 50px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 2px solid white;
+  border-radius: 8px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-family: 'Press Start 2P', monospace;
+  font-size: 10px;
+  color: white;
+}
+
   </style>
 
   <!-- Firebase compat -->
@@ -113,7 +137,7 @@
   <button id="exploreBtn">Explorer</button>
   <button id="quitBtnTop">Quitter</button>
 </div>
-
+<div id="hotbar"></div>
 <script>
 const firebaseConfig = {
   apiKey: "AIzaSyBPq6Wfxzq02MfK69BFxHm9_FUjDGTmAcw",
@@ -474,6 +498,36 @@ auth.onAuthStateChanged(async user => {
   } else {
     inGameMinutes = 12 * 60;
   }
+  // Initialisation de la hotbar vide si elle n'existe pas
+const hotbarRef = db.ref(`users/${uid}/worlds/${currentWorld}/playerinfos/hotbar`);
+const hotbarSnap = await hotbarRef.once("value");
+
+if (!hotbarSnap.exists()) {
+  const defaultHotbar = {
+    "1": "EMPTY",
+    "2": "EMPTY",
+    "3": "EMPTY",
+    "4": "EMPTY",
+    "5": "EMPTY"
+  };
+  await hotbarRef.set(defaultHotbar);
+}
+
+// Affichage de la hotbar
+function drawHotbar(data) {
+  const container = document.getElementById("hotbar");
+  container.innerHTML = "";
+  for (let i = 1; i <= 5; i++) {
+    const slot = document.createElement("div");
+    slot.className = "hotbar-slot";
+    slot.textContent = data?.[i] || "EMPTY";
+    container.appendChild(slot);
+  }
+}
+
+hotbarRef.on("value", snap => {
+  drawHotbar(snap.val());
+});
 
   const daySnap = await db.ref(`users/${uid}/worlds/${currentWorld}/day`).once("value");
   if (daySnap.exists()) currentDay = daySnap.val();
