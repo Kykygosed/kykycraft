@@ -151,6 +151,7 @@
   <button id="quitBtnTop">Quitter</button>
 </div>
 <div id="hotbar"></div>
+<button id="breakButton" style="display: none;">Casser</button>
 <script>
 const firebaseConfig = {
   apiKey: "AIzaSyBPq6Wfxzq02MfK69BFxHm9_FUjDGTmAcw",
@@ -672,9 +673,16 @@ auth.onAuthStateChanged(async user => {
 
   requestAnimationFrame(gameLoop);
 });
+const breakButton = document.getElementById("breakButton");
+breakButton.style.position = "absolute";
+breakButton.style.display = "none";
+
+let currentTargetTree = null;
+
 function startTreeProximityDetection() {
   setInterval(() => {
-    // pour chaque arbre chargé dans treePositions
+    let treeNearby = false;
+
     treePositions.forEach(pos => {
       const treeElement = document.querySelector(`.tree[data-id="${pos.x}_${pos.y}"]`);
       if (!treeElement) return;
@@ -683,29 +691,40 @@ function startTreeProximityDetection() {
       const dy = player.y - pos.y;
       const dist = Math.sqrt(dx * dx + dy * dy);
 
-      let breakBtn = treeElement.querySelector('.break-button');
-
       if (dist < 50) {
-        if (!breakBtn) {
-          breakBtn = document.createElement('button');
-          breakBtn.className = 'break-button';
-          breakBtn.textContent = 'Casser';
-          breakBtn.style.position = 'absolute';
-          breakBtn.style.left = '40px';
-          breakBtn.style.top = '-20px';
+        // On est proche d'un arbre
+        treeNearby = true;
+        currentTargetTree = { element: treeElement, pos };
 
-          breakBtn.addEventListener('click', () => {
-            breakTree(treeElement, pos.x, pos.y);
-          });
+        // Positionner le bouton juste au-dessus de l'arbre (en px dans la fenêtre)
+        // Pour ça, on doit récupérer la position absolue de treeElement dans la page
+        const rect = treeElement.getBoundingClientRect();
 
-          treeElement.appendChild(breakBtn);
-        }
-      } else {
-        if (breakBtn) breakBtn.remove();
+        breakButton.style.left = `${rect.left + window.scrollX + 40}px`;
+        breakButton.style.top = `${rect.top + window.scrollY - 20}px`;
+        breakButton.style.display = "block";
       }
     });
+
+    if (!treeNearby) {
+      // On n'est proche d'aucun arbre : cacher bouton
+      breakButton.style.display = "none";
+      currentTargetTree = null;
+    }
   }, 200);
 }
+
+breakButton.addEventListener("click", () => {
+  if (!currentTargetTree) return;
+
+  const { element, pos } = currentTargetTree;
+  breakTree(element, pos.x, pos.y);
+
+  // Après casse, on cache le bouton
+  breakButton.style.display = "none";
+  currentTargetTree = null;
+});
+
 
 
 
