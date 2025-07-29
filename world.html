@@ -151,6 +151,8 @@
   <button id="quitBtnTop">Quitter</button>
 </div>
 <div id="hotbar"></div>
+<script src="woodSystem.js"></script>
+
 <script>
 const firebaseConfig = {
   apiKey: "AIzaSyBPq6Wfxzq02MfK69BFxHm9_FUjDGTmAcw",
@@ -429,6 +431,9 @@ function gameLoop() {
   handleMovement();
   updateGameTime();
   updateFirebaseCoords();
+  handleHeldTree();
+  drawDroppedItems();
+
 
   ctx.fillStyle = "red";
   ctx.fillRect(playerScreenX, playerScreenY, player.size, player.size);
@@ -559,11 +564,22 @@ auth.onAuthStateChanged(async user => {
       const item = data?.[i] || "EMPTY";
 
       if (item !== "EMPTY") {
-        const img = document.createElement("img");
-        if (item === "bois") img.src = "wood.png";
-        // Tu peux ajouter d'autres types ici plus tard
-        slot.appendChild(img);
-      }
+  const img = document.createElement("img");
+  if (item.startsWith("bois")) img.src = "wood.png";
+  slot.appendChild(img);
+
+  const match = item.match(/\((\d+)\)/);
+  if (match) {
+    const count = document.createElement("span");
+    count.textContent = match[1];
+    count.style.position = "absolute";
+    count.style.bottom = "2px";
+    count.style.right = "4px";
+    count.style.fontSize = "10px";
+    count.style.color = "white";
+    slot.appendChild(count);
+  }
+}
 
       slot.onclick = () => {
         selectedSlot = i;
