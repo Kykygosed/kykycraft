@@ -5,6 +5,9 @@ const holdDuration = 1500; // en ms
 let droppedItems = [];
 const woodImg = new Image();
 woodImg.src = "wood.png";
+const canvas = document.getElementById("gameCanvas");
+const ctx = canvas.getContext("2d");
+
 
 // === Couper un arbre si on reste appuyé ===
 canvas.addEventListener("mousedown", (e) => {
