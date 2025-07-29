@@ -291,8 +291,11 @@ async function loadOrGenerateTrees() {
     }
   }
 }
-await loadOrGenerateTrees();
-startTreeProximityDetection();
+(async () => {
+  await loadOrGenerateTrees();
+  startTreeProximityDetection();
+})();
+
 
 let mobs = [];
 const mobSize = 20;
