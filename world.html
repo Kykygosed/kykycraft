@@ -175,6 +175,8 @@ const menuBtn = document.getElementById("menuBtn");
 const resumeBtn = document.getElementById("resumeBtn");
 const quitBtn = document.getElementById("quitBtn");
 const maxMonsters = 50;
+const TILE_SIZE = 32; // par exemple, 32 pixels par case
+
 const monsters = [];
 
 let player = { x: 100, y: 100, size: 20 };
@@ -285,11 +287,19 @@ function cancelHoldTimer() {
 
 async function breakTree(treeKey, treePos) {
   // Supprime l'arbre dans Firebase
-  await firebase.database().ref(`users/${UUID}/worlds/${worldName}/worldinfos/trees/${treeKey}`).remove();
+  await db.ref(`users/${uid}/worlds/${currentWorld}/worldinfo/trees/${treeKey}`).remove();
 
-  // Remplace l'arbre par du bois sur ta map localement
+  // Supprime le bouton correspondant localement
+  const btn = document.querySelector(`button[data-tree-key="${treeKey}"]`);
+  if (btn) btn.remove();
+
+  // Place le bois à cet endroit (à faire)
   placeWoodAt(treePos);
+
+  // Mets à jour l'objet local
+  delete treePositions[treeKey];
 }
+
   
 function placeWoodAt(pos) {
   // ajoute dans ta structure d’état locale ou dans Firebase (optionnel)
@@ -327,6 +337,8 @@ function displayTrees(treesData) {
   for (const [treeKey, pos] of Object.entries(treesData)) {
     const btn = document.createElement('button');
     btn.className = 'tree-button';
+
+    btn.dataset.treeKey = treeKey;
 
     btn.style.position = 'absolute';
     btn.style.left = pos.x * TILE_SIZE + 'px';
