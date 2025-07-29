@@ -189,6 +189,9 @@ const treeImg = new Image();
 treeImg.src = "tree.png";
 const heartImg = new Image();
 heartImg.src = "heart.png";
+let woodDrops = [];
+const woodImg = new Image();
+woodImg.src = 'wood.png'; // Assure-toi que ce fichier existe dans le bon dossier
 
 
 const timeDisplay = document.createElement("div");
@@ -229,6 +232,10 @@ function drawInfiniteMap() {
       ctx.drawImage(mapImg, offsetX + x * tileW, offsetY + y * tileH);
     }
   }
+  woodDrops.forEach(drop => {
+  ctx.drawImage(woodImg, drop.x - player.x + canvas.width/2, drop.y - player.y + canvas.height/2, 30, 30);
+});
+
 }
 
 function getGameTimeStr() {
@@ -326,32 +333,20 @@ function spawnMobsIfNight(playerPosition) {
 function handleDeath() {
   isDead = true;
   document.getElementById("deathScreen").style.display = "flex";
-  document.getElementById("respawnBtn").style.display = uniqueMode ? "none" : "inline-block";
-  document.getElementById("exploreBtn").style.display = uniqueMode ? "inline-block" : "none";
-  document.getElementById("quitBtnTop").style.display = "inline-block";
+
+  if (uniqueMode) {
+    savePlayerDied(uid, currentWorld).then(() => {
+      location.href = "play.html";
+    }).catch(() => {
+      location.href = "play.html";
+    });
+  } else {
+    document.getElementById("respawnBtn").style.display = "inline-block";
+    document.getElementById("exploreBtn").style.display = "inline-block";
+    document.getElementById("quitBtnTop").style.display = "inline-block";
+  }
 }
-document.getElementById("respawnBtn").onclick = () => {
-  hearts = maxHearts;
-  player.x = 100;
-  player.y = 100;
-  isDead = false;
-  updateHeartsUI();
-  document.getElementById("deathScreen").style.display = "none";
-  db.ref(`users/${uid}/worlds/${currentWorld}/playerinfos/hearts`).set(hearts);
-};
 
-document.getElementById("exploreBtn").onclick = () => {
-  player.x = 100;
-  player.y = 100;
-  isDead = false;
-  uniqueMode = true;
-  updateHeartsUI();
-  document.getElementById("deathScreen").style.display = "none";
-};
-
-document.getElementById("quitBtnTop").onclick = () => {
-  location.href = "play.html";
-};
 function savePlayerDied(uuid, world) {
   const diedRef = ref(db, `users/${uuid}/worlds/${world}`);
   return update(diedRef, { died: true });
@@ -388,18 +383,14 @@ window.addEventListener("keyup", e => {
 
 function handleMovement() {
   const speed = 3;
-  if (keys["z"]) player.y -= speed;
-  if (keys["s"]) player.y += speed;
-  if (keys["q"]) player.x -= speed;
-  if (keys["d"]) player.x += speed;
-}
-function onPlayerMove(newPosition) {
-  player.position = newPosition;
-  
-  // ... ton code déplacement ...
+  let moved = false;
 
-  // Spawn mobs uniquement si nuit
-  spawnMobsIfNight(newPosition);
+  if (keys["z"]) { player.y -= speed; moved = true; }
+  if (keys["s"]) { player.y += speed; moved = true; }
+  if (keys["q"]) { player.x -= speed; moved = true; }
+  if (keys["d"]) { player.x += speed; moved = true; }
+
+  if (moved) spawnMobsIfNight(player); // <--- appel correct ici
 }
 
 let lastTimeUpdate = Date.now();
@@ -471,6 +462,40 @@ quitBtn.onclick = async () => {
   await db.ref(`users/${uid}/worlds/${currentWorld}/day`).set(currentDay);
   location.href = "play.html";
 };
+
+  
+function addWoodToInventory() {
+  const userId = localStorage.getItem("uuid");
+  const world = currentWorld;
+  const hotbarRef = db.ref(`users/${userId}/worlds/${world}/hotbar`);
+
+  hotbarRef.once("value").then(snapshot => {
+    const hotbar = snapshot.val() || {};
+    let stacked = false;
+
+    for (let i = 1; i <= 9; i++) {
+      const key = `slot${i}`;
+      if (hotbar[key] && hotbar[key].startsWith("bois")) {
+        const countMatch = hotbar[key].match(/\((\d+)\)/);
+        const count = countMatch ? parseInt(countMatch[1]) : 1;
+        const newCount = count + 1;
+        hotbarRef.child(key).set(`bois (${newCount})`);
+        stacked = true;
+        break;
+      }
+    }
+
+    if (!stacked) {
+      for (let i = 1; i <= 9; i++) {
+        const key = `slot${i}`;
+        if (!hotbar[key]) {
+          hotbarRef.child(key).set("bois (1)");
+          break;
+        }
+      }
+    }
+  });
+}
 
 window.addEventListener("beforeunload", async () => {
   await db.ref(`presence/${uid}`).set(false);
@@ -595,7 +620,43 @@ auth.onAuthStateChanged(async user => {
   requestAnimationFrame(gameLoop);
 });
 
+const nearbyDropIndex = woodDrops.findIndex(drop => {
+  const dx = drop.x + 15 - player.x;
+  const dy = drop.y + 15 - player.y;
+  return Math.hypot(dx, dy) < 40;
+});
 
+if (nearbyDropIndex !== -1) {
+  addWoodToInventory();
+  woodDrops.splice(nearbyDropIndex, 1);
+}
+
+let treeHoldTimeout = null;
+
+canvas.addEventListener("mousedown", e => {
+  const rect = canvas.getBoundingClientRect();
+  const clickX = (e.clientX - rect.left) / zoom + player.x - canvas.width / 2 / zoom;
+  const clickY = (e.clientY - rect.top) / zoom + player.y - canvas.height / 2 / zoom;
+
+  const clickedTree = trees.find(tree => {
+    return (
+      clickX > tree.x &&
+      clickX < tree.x + 40 &&
+      clickY > tree.y &&
+      clickY < tree.y + 40
+    );
+  });
+
+  if (clickedTree) {
+    treeHoldTimeout = setTimeout(() => {
+      removeTree(clickedTree);
+    }, 800); // 800ms
+  }
+});
+
+canvas.addEventListener("mouseup", () => {
+  clearTimeout(treeHoldTimeout);
+});
 
   
 function drawMobs() {
