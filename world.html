@@ -151,7 +151,6 @@
   <button id="quitBtnTop">Quitter</button>
 </div>
 <div id="hotbar"></div>
-<button id="breakButton" style="display: none;">Casser</button>
 <script>
 const firebaseConfig = {
   apiKey: "AIzaSyBPq6Wfxzq02MfK69BFxHm9_FUjDGTmAcw",
@@ -190,6 +189,9 @@ const treeImg = new Image();
 treeImg.src = "tree.png";
 const heartImg = new Image();
 heartImg.src = "heart.png";
+let woodDrops = [];
+const woodImg = new Image();
+woodImg.src = 'wood.png'; // Assure-toi que ce fichier existe dans le bon dossier
 
 
 const timeDisplay = document.createElement("div");
@@ -230,6 +232,10 @@ function drawInfiniteMap() {
       ctx.drawImage(mapImg, offsetX + x * tileW, offsetY + y * tileH);
     }
   }
+  woodDrops.forEach(drop => {
+  ctx.drawImage(woodImg, drop.x - player.x + canvas.width/2, drop.y - player.y + canvas.height/2, 30, 30);
+});
+
 }
 
 function getGameTimeStr() {
@@ -292,12 +298,6 @@ async function loadOrGenerateTrees() {
     }
   }
 }
-(async () => {
-  await loadOrGenerateTrees();
-  startTreeProximityDetection();
-})();
-
-
 let mobs = [];
 const mobSize = 20;
 const mobSpeed = 1;
@@ -333,32 +333,20 @@ function spawnMobsIfNight(playerPosition) {
 function handleDeath() {
   isDead = true;
   document.getElementById("deathScreen").style.display = "flex";
-  document.getElementById("respawnBtn").style.display = uniqueMode ? "none" : "inline-block";
-  document.getElementById("exploreBtn").style.display = uniqueMode ? "inline-block" : "none";
-  document.getElementById("quitBtnTop").style.display = "inline-block";
+
+  if (uniqueMode) {
+    savePlayerDied(uid, currentWorld).then(() => {
+      location.href = "play.html";
+    }).catch(() => {
+      location.href = "play.html";
+    });
+  } else {
+    document.getElementById("respawnBtn").style.display = "inline-block";
+    document.getElementById("exploreBtn").style.display = "inline-block";
+    document.getElementById("quitBtnTop").style.display = "inline-block";
+  }
 }
-document.getElementById("respawnBtn").onclick = () => {
-  hearts = maxHearts;
-  player.x = 100;
-  player.y = 100;
-  isDead = false;
-  updateHeartsUI();
-  document.getElementById("deathScreen").style.display = "none";
-  db.ref(`users/${uid}/worlds/${currentWorld}/playerinfos/hearts`).set(hearts);
-};
 
-document.getElementById("exploreBtn").onclick = () => {
-  player.x = 100;
-  player.y = 100;
-  isDead = false;
-  uniqueMode = true;
-  updateHeartsUI();
-  document.getElementById("deathScreen").style.display = "none";
-};
-
-document.getElementById("quitBtnTop").onclick = () => {
-  location.href = "play.html";
-};
 function savePlayerDied(uuid, world) {
   const diedRef = ref(db, `users/${uuid}/worlds/${world}`);
   return update(diedRef, { died: true });
@@ -395,18 +383,14 @@ window.addEventListener("keyup", e => {
 
 function handleMovement() {
   const speed = 3;
-  if (keys["z"]) player.y -= speed;
-  if (keys["s"]) player.y += speed;
-  if (keys["q"]) player.x -= speed;
-  if (keys["d"]) player.x += speed;
-}
-function onPlayerMove(newPosition) {
-  player.position = newPosition;
-  
-  // ... ton code déplacement ...
+  let moved = false;
 
-  // Spawn mobs uniquement si nuit
-  spawnMobsIfNight(newPosition);
+  if (keys["z"]) { player.y -= speed; moved = true; }
+  if (keys["s"]) { player.y += speed; moved = true; }
+  if (keys["q"]) { player.x -= speed; moved = true; }
+  if (keys["d"]) { player.x += speed; moved = true; }
+
+  if (moved) spawnMobsIfNight(player); // <--- appel correct ici
 }
 
 let lastTimeUpdate = Date.now();
@@ -468,7 +452,6 @@ function closeMenu() {
   menuPopup.style.display = "none";
   if (isMobile) menuBtn.style.display = "block";
 }
-
 menuBtn.onclick = openMenu;
 resumeBtn.onclick = () => closeMenu();
 quitBtn.onclick = async () => {
@@ -480,81 +463,44 @@ quitBtn.onclick = async () => {
   location.href = "play.html";
 };
 
-window.addEventListener("beforeunload", async () => {
-  await db.ref(`presence/${uid}`).set(false);
-  await db.ref(`users/${uid}/playing`).set("Ecran d'accueil");
-});
+  
+function addWoodToInventory() {
+  const userId = localStorage.getItem("uuid");
+  const world = currentWorld;
+  const hotbarRef = db.ref(`users/${userId}/worlds/${world}/hotbar`);
 
-function breakTree(treeElement, treeData) {
-  const uuid = currentUser.uid;
-  const worldName = currentWorld;
-  const treeRef = ref(db, `users/${uuid}/worlds/${worldName}/worldinfos/trees/${treeData.id}`);
-
-  remove(treeRef); // Supprime de Firebase
-  treeElement.remove(); // Supprime du DOM
-  dropWood(treeData.x, treeData.y); // Fait apparaître du bois
-}
-
-function dropWood(x, y) {
-  const wood = document.createElement('img');
-  wood.src = 'wood.png';
-  wood.className = 'dropped-wood';
-  wood.style.position = 'absolute';
-  wood.style.left = `${x}px`;
-  wood.style.top = `${y}px`;
-  wood.dataset.x = x;
-  wood.dataset.y = y;
-
-  document.body.appendChild(wood);
-
-  wood.addEventListener('click', () => {
-    const dx = playerX - x;
-    const dy = playerY - y;
-    const dist = Math.sqrt(dx * dx + dy * dy);
-
-    if (dist < 50) {
-      addWoodToHotbar();
-      wood.remove();
-    }
-  });
-}
-
-function addWoodToHotbar() {
-  const uuid = currentUser.uid;
-  const worldName = currentWorld;
-  const hotbarRef = ref(db, `users/${uuid}/worlds/${worldName}/hotbar`);
-
-  get(hotbarRef).then(snapshot => {
+  hotbarRef.once("value").then(snapshot => {
     const hotbar = snapshot.val() || {};
-    let updated = false;
+    let stacked = false;
 
-    for (let slot in hotbar) {
-      if (hotbar[slot].startsWith("bois")) {
-        const match = hotbar[slot].match(/\((\d+)\)/);
-        let count = match ? parseInt(match[1]) : 1;
-        count++;
-        hotbar[slot] = `bois (${count})`;
-        updated = true;
+    for (let i = 1; i <= 9; i++) {
+      const key = `slot${i}`;
+      if (hotbar[key] && hotbar[key].startsWith("bois")) {
+        const countMatch = hotbar[key].match(/\((\d+)\)/);
+        const count = countMatch ? parseInt(countMatch[1]) : 1;
+        const newCount = count + 1;
+        hotbarRef.child(key).set(`bois (${newCount})`);
+        stacked = true;
         break;
       }
     }
 
-    if (!updated) {
+    if (!stacked) {
       for (let i = 1; i <= 9; i++) {
         const key = `slot${i}`;
-        if (!hotbar[key] || hotbar[key] === "") {
-          hotbar[key] = "bois (1)";
-          updated = true;
+        if (!hotbar[key]) {
+          hotbarRef.child(key).set("bois (1)");
           break;
         }
       }
     }
-
-    if (updated) {
-      set(hotbarRef, hotbar);
-    }
   });
 }
+
+window.addEventListener("beforeunload", async () => {
+  await db.ref(`presence/${uid}`).set(false);
+  await db.ref(`users/${uid}/playing`).set("Ecran d'accueil");
+});
 
   
 auth.onAuthStateChanged(async user => {
@@ -673,61 +619,44 @@ auth.onAuthStateChanged(async user => {
 
   requestAnimationFrame(gameLoop);
 });
-const breakButton = document.getElementById("breakButton");
-breakButton.style.position = "absolute";
-breakButton.style.display = "none";
 
-let currentTargetTree = null;
-
-function startTreeProximityDetection() {
-  console.log("startTreeProximityDetection lancé");
-  setInterval(() => {
-    let treeNearby = false;
-
-    treePositions.forEach(pos => {
-      const treeElement = document.querySelector(`.tree[data-id="${pos.x}_${pos.y}"]`);
-      if (!treeElement) return;
-
-      const dx = player.x - pos.x;
-      const dy = player.y - pos.y;
-      const dist = Math.sqrt(dx * dx + dy * dy);
-
-      if (dist < 50) {
-        // On est proche d'un arbre
-        treeNearby = true;
-        currentTargetTree = { element: treeElement, pos };
-
-        // Positionner le bouton juste au-dessus de l'arbre (en px dans la fenêtre)
-        // Pour ça, on doit récupérer la position absolue de treeElement dans la page
-        const rect = treeElement.getBoundingClientRect();
-
-        breakButton.style.left = `${rect.left + window.scrollX + 40}px`;
-        breakButton.style.top = `${rect.top + window.scrollY - 20}px`;
-        breakButton.style.display = "block";
-      }
-    });
-
-    if (!treeNearby) {
-      // On n'est proche d'aucun arbre : cacher bouton
-      breakButton.style.display = "none";
-      currentTargetTree = null;
-    }
-  }, 200);
-}
-
-breakButton.addEventListener("click", () => {
-  if (!currentTargetTree) return;
-
-  const { element, pos } = currentTargetTree;
-  breakTree(element, pos.x, pos.y);
-
-  // Après casse, on cache le bouton
-  breakButton.style.display = "none";
-  currentTargetTree = null;
+const nearbyDropIndex = woodDrops.findIndex(drop => {
+  const dx = drop.x + 15 - player.x;
+  const dy = drop.y + 15 - player.y;
+  return Math.hypot(dx, dy) < 40;
 });
 
+if (nearbyDropIndex !== -1) {
+  addWoodToInventory();
+  woodDrops.splice(nearbyDropIndex, 1);
+}
 
+let treeHoldTimeout = null;
 
+canvas.addEventListener("mousedown", e => {
+  const rect = canvas.getBoundingClientRect();
+  const clickX = (e.clientX - rect.left) / zoom + player.x - canvas.width / 2 / zoom;
+  const clickY = (e.clientY - rect.top) / zoom + player.y - canvas.height / 2 / zoom;
+
+  const clickedTree = trees.find(tree => {
+    return (
+      clickX > tree.x &&
+      clickX < tree.x + 40 &&
+      clickY > tree.y &&
+      clickY < tree.y + 40
+    );
+  });
+
+  if (clickedTree) {
+    treeHoldTimeout = setTimeout(() => {
+      removeTree(clickedTree);
+    }, 800); // 800ms
+  }
+});
+
+canvas.addEventListener("mouseup", () => {
+  clearTimeout(treeHoldTimeout);
+});
 
   
 function drawMobs() {
