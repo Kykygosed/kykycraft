@@ -155,6 +155,16 @@
   background-color: #1b5e20;
 }
 
+.item-count {
+  position: absolute;
+  bottom: 2px;
+  right: 6px;
+  background: rgba(0,0,0,0.6);
+  color: white;
+  font-size: 12px;
+  padding: 0 3px;
+  border-radius: 3px;
+}
 
 
   </style>
@@ -627,12 +637,23 @@ auth.onAuthStateChanged(async user => {
 
       const item = data?.[i] || "EMPTY";
 
-      if (item !== "EMPTY") {
-        const img = document.createElement("img");
-        if (item === "bois") img.src = "wood.png";
-        // Ajoute d'autres items ici si besoin
-        slot.appendChild(img);
-      }
+if (item !== "EMPTY") {
+  const img = document.createElement("img");
+  if (item.startsWith("bois")) img.src = "wood.png";
+  // ajoute d'autres items ici...
+
+  slot.appendChild(img);
+
+  // Affiche le nombre si stack
+  const match = item.match(/\((\d+)\)/);
+  if (match) {
+    const countEl = document.createElement("div");
+    countEl.textContent = match[1];
+    countEl.className = "item-count";
+    slot.appendChild(countEl);
+  }
+}
+
 
       slot.onclick = () => {
         selectedSlot = i;
@@ -676,7 +697,7 @@ auth.onAuthStateChanged(async user => {
       treePositions = treePositions.filter(tree => !(tree.x === nearbyTree.x && tree.y === nearbyTree.y));
 
       // Optionnel : ajout d'un item "bois" au sol
-      droppedItems.push({ x: nearbyTree.x, y: nearbyTree.y });
+      await addItemToHotbar("bois");
 
       nearbyTree = null;
       document.getElementById("breakBtn").style.display = "none";
@@ -686,6 +707,35 @@ auth.onAuthStateChanged(async user => {
       console.error("Erreur suppression arbre :", err);
     }
   };
+
+  async function addItemToHotbar(itemName) {
+  const hotbarRef = db.ref(`users/${uid}/worlds/${currentWorld}/playerinfos/hotbar`);
+  const hotbarSnap = await hotbarRef.once("value");
+  const hotbar = hotbarSnap.val();
+
+  // Cherche un slot existant avec le même item (stack)
+  for (let i = 1; i <= 5; i++) {
+    const slotValue = hotbar[i];
+    if (slotValue && slotValue.startsWith(itemName)) {
+      const match = slotValue.match(/\((\d+)\)/);
+      const count = match ? parseInt(match[1]) : 1;
+      hotbar[i] = `${itemName} (${count + 1})`;
+      await hotbarRef.set(hotbar);
+      return;
+    }
+  }
+
+  // Si aucun stack trouvé, cherche un slot vide
+  for (let i = 1; i <= 5; i++) {
+    if (!hotbar[i] || hotbar[i] === "EMPTY") {
+      hotbar[i] = itemName;
+      await hotbarRef.set(hotbar);
+      return;
+    }
+  }
+
+  console.warn("Hotbar pleine !");
+}
 
   // Lancement de la boucle principale
   requestAnimationFrame(gameLoop);
