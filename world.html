@@ -371,29 +371,18 @@ function handleDeath() {
   document.getElementById("respawnBtn").style.display = uniqueMode ? "none" : "inline-block";
   document.getElementById("exploreBtn").style.display = uniqueMode ? "inline-block" : "none";
   document.getElementById("quitBtnTop").style.display = "inline-block";
+
+  if (uniqueMode) {
+    // Supprimer le monde du joueur
+    const worldRef = db.ref(`users/${uid}/worlds/${currentWorld}`);
+    worldRef.remove().then(() => {
+      console.log("Monde supprimé car mode unique");
+    }).catch(err => {
+      console.error("Erreur lors de la suppression du monde :", err);
+    });
+  }
 }
-document.getElementById("respawnBtn").onclick = () => {
-  hearts = maxHearts;
-  player.x = 100;
-  player.y = 100;
-  isDead = false;
-  updateHeartsUI();
-  document.getElementById("deathScreen").style.display = "none";
-  db.ref(`users/${uid}/worlds/${currentWorld}/playerinfos/hearts`).set(hearts);
-};
 
-document.getElementById("exploreBtn").onclick = () => {
-  player.x = 100;
-  player.y = 100;
-  isDead = false;
-  uniqueMode = true;
-  updateHeartsUI();
-  document.getElementById("deathScreen").style.display = "none";
-};
-
-document.getElementById("quitBtnTop").onclick = () => {
-  location.href = "play.html";
-};
 function savePlayerDied(uuid, world) {
   const diedRef = ref(db, `users/${uuid}/worlds/${world}`);
   return update(diedRef, { died: true });
