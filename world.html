@@ -119,27 +119,39 @@
   max-width: 32px;
   max-height: 32px;
 }
+#hotbar {
+  position: fixed;
+  bottom: 20px;  /* Exemple, adapte selon ta hotbar */
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 10px;
+  z-index: 100;  /* Hotbar en dessous du bouton */
+}
+
 #breakBtn {
-  position: fixed;       /* Pour qu'il reste fixe même si tu scroll */
-  bottom: 110px;         /* Ajuste cette valeur pour être juste au-dessus de la hotbar */
-  right: 20px;           /* Décalage depuis la droite, adapte selon ta hotbar */
-  padding: 10px 20px;
-  background-color: #d9534f; /* Rouge style bootstrap */
+  position: fixed;
+  bottom: 80px;  /* Au-dessus de la hotbar (20px + hauteur hotbar + un peu de marge) */
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 12px 24px;
+  background-color: #d9534f;
   color: white;
   border: none;
-  border-radius: 5px;
+  border-radius: 6px;
   font-size: 18px;
   cursor: pointer;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.3);
-  z-index: 1000;         /* Pour être bien au-dessus des autres éléments */
-  display: none;         /* Par défaut caché, le JS l'affichera */
+  z-index: 200;  /* Doit être au-dessus */
+  display: none;  /* Par défaut caché, JS l'affiche */
   user-select: none;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.3);
   transition: background-color 0.3s ease;
 }
 
 #breakBtn:hover {
   background-color: #c9302c;
 }
+
 
 
   </style>
