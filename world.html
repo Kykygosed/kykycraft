@@ -299,7 +299,8 @@ function updateLighting() {
 function updateHeartsUI() {
   const container = document.getElementById("heartsContainer");
   container.innerHTML = "";
-  if (uniqueMode || isDead) return;
+  if (isDead) return;  // Garde la condition liée à la mort, sinon affiche toujours les coeurs
+
   for (let i = 0; i < maxHearts; i++) {
     const heart = document.createElement("img");
     heart.src = "heart.png";
