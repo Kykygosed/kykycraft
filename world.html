@@ -564,6 +564,7 @@ auth.onAuthStateChanged(async user => {
   uid = user.uid;
   document.getElementById("loading").style.display = "flex";
 
+  // Récupérer le monde en cours de jeu
   const playingSnap = await db.ref(`users/${uid}/playing`).once("value");
   currentWorld = playingSnap.val();
   if (!currentWorld || currentWorld === "Ecran d'accueil") {
@@ -571,6 +572,7 @@ auth.onAuthStateChanged(async user => {
     return;
   }
 
+  // Récupérer les coordonnées du joueur
   const coordsSnap = await db.ref(`users/${uid}/worlds/${currentWorld}/playerinfos/coords`).once("value");
   if (coordsSnap.exists()) {
     const val = coordsSnap.val();
@@ -581,6 +583,7 @@ auth.onAuthStateChanged(async user => {
     player.y = 100;
   }
 
+  // Récupérer l’heure du jeu
   const dateSnap = await db.ref(`users/${uid}/worlds/${currentWorld}/date`).once("value");
   if (dateSnap.exists()) {
     const [h, m] = dateSnap.val().split(":").map(Number);
@@ -589,9 +592,11 @@ auth.onAuthStateChanged(async user => {
     inGameMinutes = 12 * 60;
   }
 
+  // Jour en jeu
   const daySnap = await db.ref(`users/${uid}/worlds/${currentWorld}/day`).once("value");
   if (daySnap.exists()) currentDay = daySnap.val();
 
+  // Coeurs du joueur
   const heartsSnap = await db.ref(`users/${uid}/worlds/${currentWorld}/playerinfos/hearts`).once("value");
   if (heartsSnap.exists()) {
     hearts = heartsSnap.val();
@@ -600,18 +605,19 @@ auth.onAuthStateChanged(async user => {
     await db.ref(`users/${uid}/worlds/${currentWorld}/playerinfos/hearts`).set(hearts);
   }
 
+  // Mode unique (uniqueMode)
   const uniqueSnap = await db.ref(`users/${uid}/worlds/${currentWorld}/unique`).once("value");
   uniqueMode = uniqueSnap.exists() && uniqueSnap.val() === true;
 
   await loadOrGenerateTrees();
 
+  // Présence utilisateur
   await db.ref(`presence/${uid}`).set(true);
 
   updateHeartsUI();
 
   // 🔥 HOTBAR SETUP
   let selectedSlot = 1;
-
   const hotbarRef = db.ref(`users/${uid}/worlds/${currentWorld}/playerinfos/hotbar`);
   const hotbarSnap = await hotbarRef.once("value");
 
@@ -626,54 +632,52 @@ auth.onAuthStateChanged(async user => {
     await hotbarRef.set(defaultHotbar);
   }
 
-function drawHotbar(data) {
-  const container = document.getElementById("hotbar");
-  container.innerHTML = "";
+  function drawHotbar(data) {
+    const container = document.getElementById("hotbar");
+    container.innerHTML = "";
 
-  for (let i = 1; i <= 5; i++) {
-    const slot = document.createElement("div");
-    slot.className = "hotbar-slot";
-    if (i === selectedSlot) slot.classList.add("selected");
+    for (let i = 1; i <= 5; i++) {
+      const slot = document.createElement("div");
+      slot.className = "hotbar-slot";
+      if (i === selectedSlot) slot.classList.add("selected");
 
-    const item = data?.[i] || "EMPTY";
+      const item = data?.[i] || "EMPTY";
 
-    if (item !== "EMPTY") {
-      const img = document.createElement("img");
+      if (item !== "EMPTY") {
+        const img = document.createElement("img");
 
-      if (item.startsWith("bois")) {
-        img.src = "wood.png";
-      } else if (item === "pelle") {
-        img.src = "shovel.png";
+        if (item.startsWith("bois")) {
+          img.src = "wood.png";
+        } else if (item === "pelle") {
+          img.src = "shovel.png";
+        }
+
+        img.className = "hotbar-item";
+        slot.appendChild(img);
+
+        const match = item.match(/\((\d+)\)/);
+        if (match) {
+          const countEl = document.createElement("div");
+          countEl.className = "item-count";
+          countEl.textContent = match[1];
+          slot.appendChild(countEl);
+        }
       }
 
-      img.className = "hotbar-item";
-      slot.appendChild(img);
+      slot.onclick = () => {
+        selectedSlot = i;
+        drawHotbar(data);
+      };
 
-      const match = item.match(/\((\d+)\)/);
-      if (match) {
-        const countEl = document.createElement("div");
-        countEl.className = "item-count";
-        countEl.textContent = match[1];
-        slot.appendChild(countEl);
-      }
+      container.appendChild(slot);
     }
-
-    // Gestion du clic sur le slot
-    slot.onclick = () => {
-      selectedSlot = i;
-      drawHotbar(data);
-    };
-
-    container.appendChild(slot);
   }
-}
 
-// Rafraîchir la hotbar quand les données changent
-hotbarRef.on("value", snap => {
-  drawHotbar(snap.val());
-});
+  hotbarRef.on("value", snap => {
+    drawHotbar(snap.val());
+  });
 
-  // 🎯 Sélection par molette
+  // Sélection par molette
   window.addEventListener("wheel", (e) => {
     const delta = Math.sign(e.deltaY);
     selectedSlot -= delta;
@@ -711,103 +715,105 @@ hotbarRef.on("value", snap => {
     } catch (err) {
       console.error("Erreur suppression arbre :", err);
     }
-    document.getElementById("craftingBtn").onclick = () => {
-  document.getElementById("craftingPopup").style.display = "block";
-};
-
-document.getElementById("craftShovelBtn").onclick = async () => {
-  const hotbarRef = db.ref(`users/${uid}/worlds/${currentWorld}/playerinfos/hotbar`);
-  const snapshot = await hotbarRef.once("value");
-  const hotbar = snapshot.val();
-
-  // Compter les bois disponibles (format : "bois(n)")
-  let totalBois = 0;
-  let boisSlots = [];
-
-  for (let i = 1; i <= 5; i++) {
-    const item = hotbar[i];
-    if (item && item.startsWith("bois(")) {
-      const count = parseInt(item.match(/\((\d+)\)/)[1]);
-      totalBois += count;
-      boisSlots.push({ slot: i, count });
-    }
-  }
-
-  if (totalBois < 5) {
-    alert("Pas assez de bois !");
-    return;
-  }
-
-  // Trouver un slot vide pour mettre la pelle
-  let emptySlot = null;
-  for (let i = 1; i <= 5; i++) {
-    if (hotbar[i] === "EMPTY") {
-      emptySlot = i;
-      break;
-    }
-  }
-
-  if (!emptySlot) {
-    alert("Pas de slot libre !");
-    return;
-  }
-
-  // Retirer 5 bois
-  let boisRestant = 5;
-  for (const slotObj of boisSlots) {
-    const { slot, count } = slotObj;
-    if (boisRestant === 0) break;
-
-    if (count <= boisRestant) {
-      hotbar[slot] = "EMPTY";
-      boisRestant -= count;
-    } else {
-      hotbar[slot] = `bois(${count - boisRestant})`;
-      boisRestant = 0;
-    }
-  }
-
-  // Mettre la pelle dans le slot vide (non stackable)
-  hotbar[emptySlot] = "pelle";
-
-  await hotbarRef.set(hotbar);
-  document.getElementById("craftingPopup").style.display = "none";
-};
-
   };
 
+  // Gestion du popup crafting - boutons
+  document.getElementById("craftingBtn").onclick = () => {
+    document.getElementById("craftingPopup").style.display = "block";
+  };
+
+  document.getElementById("craftShovelBtn").onclick = async () => {
+    const hotbarSnap = await hotbarRef.once("value");
+    const hotbar = hotbarSnap.val();
+
+    // Compter les bois disponibles (format : "bois(n)")
+    let totalBois = 0;
+    let boisSlots = [];
+
+    for (let i = 1; i <= 5; i++) {
+      const item = hotbar[i];
+      if (item && item.startsWith("bois(")) {
+        const count = parseInt(item.match(/\((\d+)\)/)[1]);
+        totalBois += count;
+        boisSlots.push({ slot: i, count });
+      }
+    }
+
+    if (totalBois < 5) {
+      alert("Pas assez de bois !");
+      return;
+    }
+
+    // Trouver un slot vide pour la pelle
+    let emptySlot = null;
+    for (let i = 1; i <= 5; i++) {
+      if (hotbar[i] === "EMPTY") {
+        emptySlot = i;
+        break;
+      }
+    }
+
+    if (!emptySlot) {
+      alert("Pas de slot libre !");
+      return;
+    }
+
+    // Retirer 5 bois
+    let boisRestant = 5;
+    for (const slotObj of boisSlots) {
+      const { slot, count } = slotObj;
+      if (boisRestant === 0) break;
+
+      if (count <= boisRestant) {
+        hotbar[slot] = "EMPTY";
+        boisRestant -= count;
+      } else {
+        hotbar[slot] = `bois(${count - boisRestant})`;
+        boisRestant = 0;
+      }
+    }
+
+    // Mettre la pelle dans le slot vide (non stackable)
+    hotbar[emptySlot] = "pelle";
+
+    await hotbarRef.set(hotbar);
+
+    document.getElementById("craftingPopup").style.display = "none";
+  };
+
+  // Fonction ajout item à la hotbar (empilement)
   async function addItemToHotbar(itemName) {
-  const hotbarRef = db.ref(`users/${uid}/worlds/${currentWorld}/playerinfos/hotbar`);
-  const hotbarSnap = await hotbarRef.once("value");
-  const hotbar = hotbarSnap.val();
+    const hotbarSnap = await hotbarRef.once("value");
+    const hotbar = hotbarSnap.val();
 
-  // Cherche un slot existant avec le même item (stack)
-  for (let i = 1; i <= 5; i++) {
-    const slotValue = hotbar[i];
-    if (slotValue && slotValue.startsWith(itemName)) {
-      const match = slotValue.match(/\((\d+)\)/);
-      const count = match ? parseInt(match[1]) : 1;
-      hotbar[i] = `${itemName} (${count + 1})`;
-      await hotbarRef.set(hotbar);
-      return;
+    // Chercher un slot existant avec le même item (stack)
+    for (let i = 1; i <= 5; i++) {
+      const slotValue = hotbar[i];
+      if (slotValue && slotValue.startsWith(itemName)) {
+        const match = slotValue.match(/\((\d+)\)/);
+        const count = match ? parseInt(match[1]) : 1;
+        hotbar[i] = `${itemName}(${count + 1})`;
+        await hotbarRef.set(hotbar);
+        return;
+      }
     }
+
+    // Si aucun stack trouvé, cherche un slot vide
+    for (let i = 1; i <= 5; i++) {
+      if (!hotbar[i] || hotbar[i] === "EMPTY") {
+        hotbar[i] = itemName;
+        await hotbarRef.set(hotbar);
+        return;
+      }
+    }
+
+    console.warn("Hotbar pleine !");
   }
 
-  // Si aucun stack trouvé, cherche un slot vide
-  for (let i = 1; i <= 5; i++) {
-    if (!hotbar[i] || hotbar[i] === "EMPTY") {
-      hotbar[i] = itemName;
-      await hotbarRef.set(hotbar);
-      return;
-    }
-  }
-
-  console.warn("Hotbar pleine !");
-}
-
-  // Lancement de la boucle principale
+  // Lancement de la boucle principale du jeu
   requestAnimationFrame(gameLoop);
 });
+
 
 
 
