@@ -595,7 +595,6 @@ auth.onAuthStateChanged(async user => {
   uniqueMode = uniqueSnap.exists() && uniqueSnap.val() === true;
 
   await loadOrGenerateTrees();
-  
 
   await db.ref(`presence/${uid}`).set(true);
 
@@ -631,7 +630,7 @@ auth.onAuthStateChanged(async user => {
       if (item !== "EMPTY") {
         const img = document.createElement("img");
         if (item === "bois") img.src = "wood.png";
-        // Tu peux ajouter d'autres types ici plus tard
+        // Ajoute d'autres items ici si besoin
         slot.appendChild(img);
       }
 
@@ -662,6 +661,33 @@ auth.onAuthStateChanged(async user => {
 
   document.getElementById("loading").style.display = "none";
 
+  // Variable globale pour stocker l'arbre proche
+  nearbyTree = null;
+
+  // Gestionnaire clic bouton casser arbre
+  document.getElementById("breakBtn").onclick = async () => {
+    if (!nearbyTree) return;
+
+    const key = `${nearbyTree.x}_${nearbyTree.y}`;
+    try {
+      await db.ref(`users/${uid}/worlds/${currentWorld}/worldinfo/trees/${key}`).remove();
+
+      // Mise à jour locale des arbres
+      treePositions = treePositions.filter(tree => !(tree.x === nearbyTree.x && tree.y === nearbyTree.y));
+
+      // Optionnel : ajout d'un item "bois" au sol
+      droppedItems.push({ x: nearbyTree.x, y: nearbyTree.y });
+
+      nearbyTree = null;
+      document.getElementById("breakBtn").style.display = "none";
+
+      console.log(`Arbre cassé : ${key}`);
+    } catch (err) {
+      console.error("Erreur suppression arbre :", err);
+    }
+  };
+
+  // Lancement de la boucle principale
   requestAnimationFrame(gameLoop);
 });
 
