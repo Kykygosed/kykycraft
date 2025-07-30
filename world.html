@@ -151,8 +151,6 @@
   <button id="quitBtnTop">Quitter</button>
 </div>
 <div id="hotbar"></div>
-<script src="woodSystem.js"></script>
-
 <script>
 const firebaseConfig = {
   apiKey: "AIzaSyBPq6Wfxzq02MfK69BFxHm9_FUjDGTmAcw",
@@ -175,8 +173,6 @@ const menuBtn = document.getElementById("menuBtn");
 const resumeBtn = document.getElementById("resumeBtn");
 const quitBtn = document.getElementById("quitBtn");
 const maxMonsters = 50;
-const TILE_SIZE = 32; // par exemple, 32 pixels par case
-
 const monsters = [];
 
 let player = { x: 100, y: 100, size: 20 };
@@ -272,94 +268,29 @@ function updateHeartsUI() {
   }
 }
 
-let holdTimer = null;
 
-function startHoldTimer(treeKey, treePos) {
-  holdTimer = setTimeout(() => {
-    breakTree(treeKey, treePos);
-  }, 1500); // 1.5 secondes d'appui long
-}
-
-function cancelHoldTimer() {
-  clearTimeout(holdTimer);
-  holdTimer = null;
-}
-
-async function breakTree(treeKey, treePos) {
-  // Supprime l'arbre dans Firebase
-  await db.ref(`users/${uid}/worlds/${currentWorld}/worldinfo/trees/${treeKey}`).remove();
-
-  // Supprime le bouton correspondant localement
-  const btn = document.querySelector(`button[data-tree-key="${treeKey}"]`);
-  if (btn) btn.remove();
-
-  // Place le bois à cet endroit (à faire)
-  placeWoodAt(treePos);
-
-  // Mets à jour l'objet local
-  delete treePositions[treeKey];
-}
-
-  
-function placeWoodAt(pos) {
-  // ajoute dans ta structure d’état locale ou dans Firebase (optionnel)
-  setMapObjects(prev => ({ ...prev, [posKey(pos)]: { type: "wood" } }));
-}
-
-
-let treePositions = {}; // stockera les arbres sous la forme { clé: {x, y} }
 
 async function loadOrGenerateTrees() {
   const treesRef = db.ref(`users/${uid}/worlds/${currentWorld}/worldinfo/trees`);
   const snap = await treesRef.once("value");
 
   if (snap.exists()) {
-    treePositions = snap.val(); // on garde l'objet avec clés + positions
+    treePositions = Object.values(snap.val());
   } else {
-    const positions = {};
+    const positions = [];
     const baseX = player.x;
     const baseY = player.y;
     for (let i = 0; i < 60; i++) {
-      const x = Math.round(baseX + Math.random() * 1000 - 500);
-      const y = Math.round(baseY + Math.random() * 1000 - 500);
-      positions[`${x}_${y}`] = { x, y };
-      await treesRef.child(`${x}_${y}`).set({ x, y });
+      const x = baseX + Math.random() * 1000 - 500;
+      const y = baseY + Math.random() * 1000 - 500;
+      positions.push({ x: Math.round(x), y: Math.round(y) });
     }
     treePositions = positions;
-  }
-
-  displayTrees(treePositions);
-}
-function displayTrees(treesData) {
-  const worldContainer = document.getElementById('world-container');
-  worldContainer.innerHTML = ''; // vide la map
-
-  for (const [treeKey, pos] of Object.entries(treesData)) {
-    const btn = document.createElement('button');
-    btn.className = 'tree-button';
-
-    btn.dataset.treeKey = treeKey;
-
-    btn.style.position = 'absolute';
-    btn.style.left = pos.x * TILE_SIZE + 'px';
-    btn.style.top = pos.y * TILE_SIZE + 'px';
-    btn.style.width = TILE_SIZE + 'px';
-    btn.style.height = TILE_SIZE + 'px';
-    btn.style.backgroundImage = 'url(tree.png)';
-    btn.style.backgroundSize = 'cover';
-    btn.style.border = 'none';
-    btn.style.cursor = 'pointer';
-
-    btn.onmousedown = () => startHoldTimer(treeKey, pos);
-    btn.onmouseup = cancelHoldTimer;
-    btn.onmouseleave = cancelHoldTimer;
-
-    btn.onclick = () => collectWoodIfClose(treeKey, pos);
-
-    worldContainer.appendChild(btn);
+    for (let i = 0; i < positions.length; i++) {
+      await treesRef.child(`${positions[i].x}_${positions[i].y}`).set(positions[i]);
+    }
   }
 }
-
 let mobs = [];
 const mobSize = 20;
 const mobSpeed = 1;
@@ -498,9 +429,6 @@ function gameLoop() {
   handleMovement();
   updateGameTime();
   updateFirebaseCoords();
-  handleHeldTree();
-  drawDroppedItems();
-
 
   ctx.fillStyle = "red";
   ctx.fillRect(playerScreenX, playerScreenY, player.size, player.size);
@@ -631,22 +559,11 @@ auth.onAuthStateChanged(async user => {
       const item = data?.[i] || "EMPTY";
 
       if (item !== "EMPTY") {
-  const img = document.createElement("img");
-  if (item.startsWith("bois")) img.src = "wood.png";
-  slot.appendChild(img);
-
-  const match = item.match(/\((\d+)\)/);
-  if (match) {
-    const count = document.createElement("span");
-    count.textContent = match[1];
-    count.style.position = "absolute";
-    count.style.bottom = "2px";
-    count.style.right = "4px";
-    count.style.fontSize = "10px";
-    count.style.color = "white";
-    slot.appendChild(count);
-  }
-}
+        const img = document.createElement("img");
+        if (item === "bois") img.src = "wood.png";
+        // Tu peux ajouter d'autres types ici plus tard
+        slot.appendChild(img);
+      }
 
       slot.onclick = () => {
         selectedSlot = i;
