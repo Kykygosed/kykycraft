@@ -373,15 +373,34 @@ function handleDeath() {
   document.getElementById("quitBtnTop").style.display = "inline-block";
 
   if (uniqueMode) {
-    // Supprimer le monde du joueur
     const worldRef = db.ref(`users/${uid}/worlds/${currentWorld}`);
-    worldRef.remove().then(() => {
-      console.log("Monde supprimé car mode unique");
-    }).catch(err => {
-      console.error("Erreur lors de la suppression du monde :", err);
-    });
+    worldRef.remove()
+      .then(() => console.log("Monde supprimé car mode unique"))
+      .catch(err => console.error("Erreur lors de la suppression du monde :", err));
   }
 }
+
+document.getElementById("respawnBtn").onclick = () => {
+  if (isDead) {
+    isDead = false;
+    document.getElementById("deathScreen").style.display = "none";
+    respawnPlayer(); // Ta fonction pour remettre le joueur en jeu
+  }
+};
+
+document.getElementById("exploreBtn").onclick = () => {
+  if (isDead && uniqueMode) {
+    isDead = false;
+    document.getElementById("deathScreen").style.display = "none";
+    startUniqueExplore(); // Ta fonction pour lancer l'exploration en mode unique
+  }
+};
+
+document.getElementById("quitBtnTop").onclick = () => {
+  // Quitter vers la page d'accueil ou déconnexion
+  location.href = "index.html";
+};
+
 
 function savePlayerDied(uuid, world) {
   const diedRef = ref(db, `users/${uuid}/worlds/${world}`);
