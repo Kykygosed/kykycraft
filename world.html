@@ -156,6 +156,66 @@
   padding: 0 3px;
   border-radius: 3px;
 }
+#deathScreen {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(20, 20, 20, 0.85);
+  display: none; /* affiché uniquement à la mort */
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+#deathScreen .panel {
+  background: #1e1e1e;
+  padding: 40px 60px;
+  border-radius: 15px;
+  box-shadow: 0 0 20px rgba(255, 0, 0, 0.6);
+  text-align: center;
+  max-width: 400px;
+  color: #f0f0f0;
+  user-select: none;
+}
+
+#deathScreen h1 {
+  font-size: 3rem;
+  margin-bottom: 20px;
+  color: #ff4c4c;
+  text-shadow: 0 0 10px #ff0000;
+}
+
+#deathScreen p {
+  font-size: 1.2rem;
+  margin-bottom: 30px;
+  color: #ccc;
+  text-shadow: 0 0 3px #000;
+}
+
+#deathScreen button {
+  background-color: #ff4c4c;
+  border: none;
+  padding: 15px 30px;
+  margin: 0 10px;
+  border-radius: 10px;
+  font-size: 1.1rem;
+  color: white;
+  cursor: pointer;
+  box-shadow: 0 4px 8px rgba(255, 76, 76, 0.6);
+  transition: background-color 0.3s ease, transform 0.2s ease;
+  user-select: none;
+}
+
+#deathScreen button:hover {
+  background-color: #ff1a1a;
+  transform: scale(1.05);
+}
+
+#deathScreen button:active {
+  transform: scale(0.95);
+}
+
+/* Pour cacher les boutons selon ton JS, c’est géré par le display inline-block/none */
 
 
   </style>
@@ -181,11 +241,16 @@
 <div id="heartsContainer" style="position:fixed; top:10px; right:10px; z-index:20;"></div>
 
 <!-- Écran de mort -->
-<div id="deathScreen" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:black; color:white; font-family:'Press Start 2P'; z-index:1000; justify-content:center; align-items:center; flex-direction:column;">
-  <p style="font-size: 20px; margin-bottom: 20px;">Vous avez succombé.</p>
-  <button id="respawnBtn">Réapparaître</button>
-  <button id="exploreBtn">Explorer</button>
-  <button id="quitBtnTop">Quitter</button>
+<div id="deathScreen">
+  <div class="panel">
+    <h1>Vous avez succombé</h1>
+    <p>Que voulez-vous faire ?</p>
+    <button id="respawnBtn">Respawn</button>
+    <button id="exploreBtn">Explorer</button>
+    <button id="quitBtnTop">Quitter</button>
+  </div>
+</div>
+
 </div>
 <div id="hotbar"></div>
 <button id="breakBtn" style="display:none; position:absolute; top:10px; right:10px; z-index:10;">CASSER</button>
