@@ -438,7 +438,7 @@ function handleDeath() {
   document.getElementById("quitBtnTop").style.display = "inline-block";
 
   // Jouer le son de mort
-  const deathSound = new Audio("sounds/death.mp3");
+  const deathSound = new Audio("death.mp3");
   deathSound.play().catch(err => {
     console.warn("Impossible de jouer le son de mort :", err);
   });
