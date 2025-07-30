@@ -131,25 +131,28 @@
 
 #breakBtn {
   position: fixed;
-  bottom: 80px;  /* Au-dessus de la hotbar (20px + hauteur hotbar + un peu de marge) */
+  bottom: 60px; /* juste au-dessus de la hotbar (ajuste si ta hotbar est plus haute) */
   left: 50%;
   transform: translateX(-50%);
-  padding: 12px 24px;
-  background-color: #d9534f;
+  padding: 6px 10px;
+  font-size: 14px;
+  background-color: #2e7d32; /* vert foncé style Minecraft */
   color: white;
-  border: none;
-  border-radius: 6px;
-  font-size: 18px;
+  border: 2px solid #1b5e20;
+  border-radius: 4px;
   cursor: pointer;
-  z-index: 200;  /* Doit être au-dessus */
-  display: none;  /* Par défaut caché, JS l'affiche */
+  z-index: 150;
   user-select: none;
-  box-shadow: 0 4px 6px rgba(0,0,0,0.3);
-  transition: background-color 0.3s ease;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.4);
+  transition: background-color 0.2s ease;
+  width: auto;
+  min-width: 80px;
+  text-align: center;
+  font-family: "Minecraft", monospace, sans-serif; /* si tu as une police style Minecraft */
 }
 
 #breakBtn:hover {
-  background-color: #c9302c;
+  background-color: #1b5e20;
 }
 
 
