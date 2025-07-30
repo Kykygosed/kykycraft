@@ -6,100 +6,135 @@
   <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
   <style>
     * {
-      font-family: 'Press Start 2P', cursive;
       box-sizing: border-box;
+      font-family: 'Press Start 2P', cursive;
     }
+
     body {
-      background: #1e1e1e;
-      color: white;
+      margin: 0;
+      padding: 0;
       display: flex;
-      flex-direction: row;
       height: 100vh;
+      background: url('https://i.imgur.com/g3jZkYw.png') center/cover no-repeat;
+      color: white;
     }
+
     .sidebar {
-      width: 250px;
-      background: #2a2a2a;
-      padding: 20px;
+      width: 300px;
+      background: rgba(30, 30, 30, 0.95);
+      padding: 30px;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-start;
+      border-right: 4px solid #00aa00;
     }
+
     .sidebar h2 {
-      margin-bottom: 20px;
+      font-size: 12px;
+      margin-bottom: 30px;
+      color: #00ff00;
     }
+
     .sidebar button {
-      background: #555;
-      color: gray;
-      padding: 10px;
-      border: none;
-      margin-bottom: 10px;
+      background: #444;
+      color: #999;
+      padding: 12px;
+      border: 2px solid #666;
+      margin-bottom: 20px;
       cursor: not-allowed;
-      width: 100%;
+      text-align: left;
     }
+
     .main {
       flex: 1;
-      padding: 20px;
+      padding: 40px;
+      background: rgba(15, 15, 15, 0.9);
+      overflow-y: auto;
     }
+
+    .main h1 {
+      font-size: 18px;
+      margin-bottom: 30px;
+      color: #00ff00;
+    }
+
     input[type="text"] {
       width: 100%;
-      padding: 10px;
-      margin-bottom: 20px;
+      padding: 14px;
+      font-size: 12px;
+      border: 2px solid #555;
+      background: #1e1e1e;
+      color: white;
+      margin-bottom: 30px;
     }
+
     .toggle-group {
       display: flex;
-      margin-bottom: 20px;
+      margin-bottom: 30px;
     }
+
     .toggle {
       flex: 1;
-      padding: 10px;
+      padding: 14px;
+      margin-right: 10px;
+      border: 2px solid #777;
+      background: #222;
       text-align: center;
-      border: 1px solid #777;
       cursor: pointer;
+      color: #bbb;
+      transition: 0.2s;
     }
+
+    .toggle:last-child {
+      margin-right: 0;
+    }
+
     .toggle.active {
-      background: green;
-    }
-    .description {
-      font-size: 10px;
-      margin-bottom: 10px;
-    }
-    .toggle-btn {
-      width: 60px;
-      height: 30px;
-      background-color: #444;
-      border-radius: 15px;
-      position: relative;
-      cursor: pointer;
-      margin-bottom: 20px;
-    }
-    .toggle-circle {
-      width: 26px;
-      height: 26px;
-      background-color: white;
-      border-radius: 50%;
-      position: absolute;
-      top: 2px;
-      left: 2px;
-      transition: 0.3s;
-    }
-    .toggle-btn.active {
-      background-color: green;
-    }
-    .toggle-btn.active .toggle-circle {
-      left: 32px;
-    }
-    .create-btn {
-      background: green;
+      background: #00aa00;
       color: white;
-      padding: 10px;
+      border-color: #00ff00;
+    }
+
+    .create-btn {
+      background: #00aa00;
+      color: white;
+      padding: 14px;
       border: none;
       cursor: pointer;
       width: 100%;
+      font-size: 12px;
+      border: 2px solid #00ff00;
+      transition: 0.3s;
+    }
+
+    .create-btn:hover {
+      background: #00ff00;
+      color: black;
+    }
+
+    @media (max-width: 768px) {
+      body {
+        flex-direction: column;
+      }
+
+      .sidebar {
+        width: 100%;
+        border-right: none;
+        border-bottom: 4px solid #00aa00;
+      }
+
+      .main {
+        padding: 20px;
+      }
     }
   </style>
 </head>
 <body>
   <div class="sidebar">
-    <h2>Général</h2>
+    <h2>Paramètres</h2>
     <button disabled>Créer sur un serveur</button>
   </div>
+
   <div class="main">
     <h1>CRÉER UN NOUVEAU MONDE</h1>
     <input type="text" id="worldName" placeholder="Nom du monde" />
@@ -118,11 +153,10 @@
       <div class="toggle" data-value="Difficile">Difficile</div>
     </div>
 
-    </div>
-
     <button class="create-btn" onclick="createWorld()">CRÉER</button>
   </div>
 
+  <!-- Firebase SDK -->
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
@@ -142,7 +176,6 @@
 
     let selectedMode = 'normal';
     let selectedDifficulty = 'Facile';
-    let unique = false;
 
     document.querySelectorAll('#modeGroup .toggle').forEach(btn => {
       btn.onclick = () => {
@@ -160,12 +193,6 @@
       };
     });
 
-    document.getElementById('uniqueToggle').onclick = () => {
-      const toggle = document.getElementById('uniqueToggle');
-      toggle.classList.toggle('active');
-      unique = toggle.classList.contains('active');
-    };
-
     function createWorld() {
       const user = auth.currentUser;
       if (!user) return alert("Non connecté");
@@ -180,7 +207,7 @@
         name,
         mode: selectedMode,
         difficulty: selectedDifficulty,
-        unique,
+        unique: false,
         createdAt,
         size
       };
