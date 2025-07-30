@@ -189,6 +189,24 @@
 </div>
 <div id="hotbar"></div>
 <button id="breakBtn" style="display:none; position:absolute; top:10px; right:10px; z-index:10;">CASSER</button>
+<!-- Bouton "Menu de fabrication" -->
+<button id="craftingBtn" style="position: fixed; bottom: 10px; left: 10px; font-family: 'Press Start 2P'; z-index: 10;">
+  Menu de fabrication
+</button>
+
+<!-- Bouton "Menu de fabrication" -->
+<button id="craftingBtn" style="position: fixed; bottom: 10px; left: 10px; font-family: 'Press Start 2P'; z-index: 10;">
+  Menu de fabrication
+</button>
+
+<!-- Pop-up de fabrication -->
+<div id="craftingPopup" style="display:none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  background: #222; padding: 20px; border-radius: 10px; color: white; z-index: 20; font-family: 'Press Start 2P';">
+  <h2 style="margin-bottom: 15px;">Menu de fabrication</h2>
+  <button id="craftShovelBtn" style="font-family: 'Press Start 2P';">5 bois - Pelle</button><br><br>
+  <button onclick="document.getElementById('craftingPopup').style.display='none'" style="font-family: 'Press Start 2P'; margin-top:10px;">Fermer</button>
+</div>
+
 <script>
 const firebaseConfig = {
   apiKey: "AIzaSyBPq6Wfxzq02MfK69BFxHm9_FUjDGTmAcw",
@@ -609,29 +627,46 @@ auth.onAuthStateChanged(async user => {
   }
 
   function drawHotbar(data) {
-    const container = document.getElementById("hotbar");
-    container.innerHTML = "";
-    for (let i = 1; i <= 5; i++) {
-      const slot = document.createElement("div");
-      slot.className = "hotbar-slot";
-      if (i === selectedSlot) slot.classList.add("selected");
+  const container = document.getElementById("hotbar");
+  container.innerHTML = "";
 
-      const item = data?.[i] || "EMPTY";
+  for (let i = 1; i <= 5; i++) {
+    const slot = document.createElement("div");
+    slot.className = "hotbar-slot";
+    if (i === selectedSlot) slot.classList.add("selected");
 
-if (item !== "EMPTY") {
-  const img = document.createElement("img");
-  if (item.startsWith("bois")) img.src = "wood.png";
-  // ajoute d'autres items ici...
+    const item = data?.[i] || "EMPTY";
 
-  slot.appendChild(img);
+    if (item !== "EMPTY") {
+      const img = document.createElement("img");
 
-  // Affiche le nombre si stack
-  const match = item.match(/\((\d+)\)/);
-  if (match) {
-    const countEl = document.createElement("div");
-    countEl.textContent = match[1];
-    countEl.className = "item-count";
-    slot.appendChild(countEl);
+      if (item.startsWith("bois")) {
+        img.src = "wood.png";
+      } else if (item === "pelle") {
+        img.src = "shovel.png";
+      }
+      // Tu peux ajouter d'autres items ici...
+
+      img.className = "hotbar-item";
+      slot.appendChild(img);
+
+      // Afficher le nombre si l'item est stackable (ex: "bois(5)")
+      const match = item.match(/\((\d+)\)/);
+      if (match) {
+        const countEl = document.createElement("div");
+        countEl.className = "item-count";
+        countEl.textContent = match[1];
+        slot.appendChild(countEl);
+      }
+    }
+
+    // Gestion du clic sur un slot
+    slot.onclick = () => {
+      selectedSlot = i;
+      drawHotbar(data);
+    };
+
+    container.appendChild(slot);
   }
 }
 
@@ -687,6 +722,69 @@ if (item !== "EMPTY") {
     } catch (err) {
       console.error("Erreur suppression arbre :", err);
     }
+    document.getElementById("craftingBtn").onclick = () => {
+  document.getElementById("craftingPopup").style.display = "block";
+};
+
+document.getElementById("craftShovelBtn").onclick = async () => {
+  const hotbarRef = db.ref(`users/${uid}/worlds/${currentWorld}/playerinfos/hotbar`);
+  const snapshot = await hotbarRef.once("value");
+  const hotbar = snapshot.val();
+
+  // Compter les bois disponibles (format : "bois(n)")
+  let totalBois = 0;
+  let boisSlots = [];
+
+  for (let i = 1; i <= 5; i++) {
+    const item = hotbar[i];
+    if (item && item.startsWith("bois(")) {
+      const count = parseInt(item.match(/\((\d+)\)/)[1]);
+      totalBois += count;
+      boisSlots.push({ slot: i, count });
+    }
+  }
+
+  if (totalBois < 5) {
+    alert("Pas assez de bois !");
+    return;
+  }
+
+  // Trouver un slot vide pour mettre la pelle
+  let emptySlot = null;
+  for (let i = 1; i <= 5; i++) {
+    if (hotbar[i] === "EMPTY") {
+      emptySlot = i;
+      break;
+    }
+  }
+
+  if (!emptySlot) {
+    alert("Pas de slot libre !");
+    return;
+  }
+
+  // Retirer 5 bois
+  let boisRestant = 5;
+  for (const slotObj of boisSlots) {
+    const { slot, count } = slotObj;
+    if (boisRestant === 0) break;
+
+    if (count <= boisRestant) {
+      hotbar[slot] = "EMPTY";
+      boisRestant -= count;
+    } else {
+      hotbar[slot] = `bois(${count - boisRestant})`;
+      boisRestant = 0;
+    }
+  }
+
+  // Mettre la pelle dans le slot vide (non stackable)
+  hotbar[emptySlot] = "pelle";
+
+  await hotbarRef.set(hotbar);
+  document.getElementById("craftingPopup").style.display = "none";
+};
+
   };
 
   async function addItemToHotbar(itemName) {
