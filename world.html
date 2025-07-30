@@ -151,6 +151,7 @@
   <button id="quitBtnTop">Quitter</button>
 </div>
 <div id="hotbar"></div>
+<button id="breakBtn" style="display:none; position:fixed; bottom:80px; left:50%; transform:translateX(-50%); padding:10px 20px; background:#fff; border:none; border-radius:8px; font-family:'Press Start 2P'; cursor:pointer; z-index:20;">CASSER</button>
 <script>
 const firebaseConfig = {
   apiKey: "AIzaSyBPq6Wfxzq02MfK69BFxHm9_FUjDGTmAcw",
@@ -189,6 +190,10 @@ const treeImg = new Image();
 treeImg.src = "tree.png";
 const heartImg = new Image();
 heartImg.src = "heart.png";
+let nearbyTree = null;
+let droppedItems = [];
+const woodImg = new Image();
+woodImg.src = "wood.png";
 
 
 const timeDisplay = document.createElement("div");
@@ -452,6 +457,25 @@ function gameLoop() {
 
   requestAnimationFrame(gameLoop);
 }
+  
+nearbyTree = null;
+document.getElementById("breakBtn").style.display = "none";
+
+for (const tree of treePositions) {
+  const dist = Math.hypot(tree.x - player.x, tree.y - player.y);
+  if (dist < 40) {
+    nearbyTree = tree;
+    document.getElementById("breakBtn").style.display = "block";
+    break;
+  }
+}
+
+// Affichage des objets au sol (bois)
+for (const drop of droppedItems) {
+  const screenX = canvas.width / 2 + (drop.x - player.x);
+  const screenY = canvas.height / 2 + (drop.y - player.y);
+  ctx.drawImage(woodImg, screenX - 16, screenY - 16, 32, 32);
+}
 
 function openMenu() {
   menuPopup.style.display = "block";
@@ -527,6 +551,23 @@ auth.onAuthStateChanged(async user => {
   uniqueMode = uniqueSnap.exists() && uniqueSnap.val() === true;
 
   await loadOrGenerateTrees();
+  document.getElementById("breakBtn").onclick = async () => {
+  if (!nearbyTree) return;
+
+  // Supprimer de Firebase
+  const key = `${nearbyTree.x}_${nearbyTree.y}`;
+  await db.ref(`users/${uid}/worlds/${currentWorld}/worldinfo/trees/${key}`).remove();
+
+  // Supprimer localement
+  treePositions = treePositions.filter(tree => tree.x !== nearbyTree.x || tree.y !== nearbyTree.y);
+
+  // Ajouter le bois au sol
+  droppedItems.push({ x: nearbyTree.x, y: nearbyTree.y });
+
+  // Optionnel : log
+  console.log(`Arbre à ${key} cassé et bois ajouté`);
+};
+
   await db.ref(`presence/${uid}`).set(true);
 
   updateHeartsUI();
