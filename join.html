@@ -159,7 +159,7 @@
   db.ref('users/' + user.uid + '/username').once('value').then(usernameSnap => {
     const username = usernameSnap.val();
 
-    if (username === "kykygosed") {
+    if (username === "kykygosed", "kenzou_tv") {
       // On laisse passer même si dispo false
       window.location.href = "world.html";
       return;
