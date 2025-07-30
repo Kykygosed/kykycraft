@@ -380,10 +380,18 @@ function handleDeath() {
   }
 }
 
-document.getElementById("respawnBtn").onclick = () => {
+document.getElementById("respawnBtn").onclick = async () => {
   if (isDead) {
     isDead = false;
     document.getElementById("deathScreen").style.display = "none";
+
+    // Remettre les coeurs à maxHearts
+    hearts = maxHearts;
+    updateHeartsUI();
+
+    // Mettre à jour dans Firebase
+    await db.ref(`users/${uid}/worlds/${currentWorld}/playerinfos/hearts`).set(hearts);
+
     respawnPlayer(); // Ta fonction pour remettre le joueur en jeu
   }
 };
@@ -397,7 +405,6 @@ document.getElementById("exploreBtn").onclick = () => {
 };
 
 document.getElementById("quitBtnTop").onclick = () => {
-  // Quitter vers la page d'accueil ou déconnexion
   location.href = "index.html";
 };
 
