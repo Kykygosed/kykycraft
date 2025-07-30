@@ -151,7 +151,7 @@
   <button id="quitBtnTop">Quitter</button>
 </div>
 <div id="hotbar"></div>
-<button id="breakBtn" style="display:none; position:fixed; bottom:80px; left:50%; transform:translateX(-50%); padding:10px 20px; background:#fff; border:none; border-radius:8px; font-family:'Press Start 2P'; cursor:pointer; z-index:20;">CASSER</button>
+<button id="breakBtn" style="display:none; position:absolute; top:10px; right:10px; z-index:10;">CASSER</button>
 <script>
 const firebaseConfig = {
   apiKey: "AIzaSyBPq6Wfxzq02MfK69BFxHm9_FUjDGTmAcw",
@@ -440,6 +440,8 @@ function gameLoop() {
 
   let opacity = updateLighting();
 
+  // Dessin des arbres + détection arbre proche
+  nearbyTree = null;
   for (const tree of treePositions) {
     const screenX = canvas.width / 2 + (tree.x - player.x);
     const screenY = canvas.height / 2 + (tree.y - player.y);
@@ -448,6 +450,20 @@ function gameLoop() {
       ctx.fillStyle = `rgba(0,0,0,${opacity.toFixed(2)})`;
       ctx.fillRect(screenX - 16, screenY - 32, 32, 64);
     }
+
+    // Vérification proximité arbre
+    const dist = Math.hypot(tree.x - player.x, tree.y - player.y);
+    if (dist < 40 && !nearbyTree) {
+      nearbyTree = tree;
+    }
+  }
+
+  // Afficher ou cacher le bouton "Casser"
+  const breakBtn = document.getElementById("breakBtn");
+  if (nearbyTree) {
+    breakBtn.style.display = "block";
+  } else {
+    breakBtn.style.display = "none";
   }
 
   drawMobs();
@@ -457,19 +473,9 @@ function gameLoop() {
 
   requestAnimationFrame(gameLoop);
 }
-  
-nearbyTree = null;
-document.getElementById("breakBtn").style.display = "none";
 
-for (const tree of treePositions) {
-  const dist = Math.hypot(tree.x - player.x, tree.y - player.y);
-  if (dist < 40) {
-    console.log("Arbre proche détecté !");
-    nearbyTree = tree;
-    document.getElementById("breakBtn").style.display = "block";
-    break;
-  }
-} 
+  
+
 
 
 // Affichage des objets au sol (bois)
@@ -553,22 +559,7 @@ auth.onAuthStateChanged(async user => {
   uniqueMode = uniqueSnap.exists() && uniqueSnap.val() === true;
 
   await loadOrGenerateTrees();
-  document.getElementById("breakBtn").onclick = async () => {
-  if (!nearbyTree) return;
-
-  // Supprimer de Firebase
-  const key = `${nearbyTree.x}_${nearbyTree.y}`;
-  await db.ref(`users/${uid}/worlds/${currentWorld}/worldinfo/trees/${key}`).remove();
-
-  // Supprimer localement
-  treePositions = treePositions.filter(tree => tree.x !== nearbyTree.x || tree.y !== nearbyTree.y);
-
-  // Ajouter le bois au sol
-  droppedItems.push({ x: nearbyTree.x, y: nearbyTree.y });
-
-  // Optionnel : log
-  console.log(`Arbre à ${key} cassé et bois ajouté`);
-};
+  
 
   await db.ref(`presence/${uid}`).set(true);
 
