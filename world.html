@@ -463,12 +463,13 @@ document.getElementById("breakBtn").style.display = "none";
 
 for (const tree of treePositions) {
   const dist = Math.hypot(tree.x - player.x, tree.y - player.y);
-  if (dist < 40) {
-    nearbyTree = tree;
-    document.getElementById("breakBtn").style.display = "block";
-    break;
-  }
+if (dist < 40) {
+  console.log("Arbre proche détecté !");
+  nearbyTree = tree;
+  document.getElementById("breakBtn").style.display = "block";
+  break;
 }
+
 
 // Affichage des objets au sol (bois)
 for (const drop of droppedItems) {
