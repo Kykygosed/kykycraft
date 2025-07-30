@@ -626,7 +626,7 @@ auth.onAuthStateChanged(async user => {
     await hotbarRef.set(defaultHotbar);
   }
 
- function drawHotbar(data) {
+function drawHotbar(data) {
   const container = document.getElementById("hotbar");
   container.innerHTML = "";
 
@@ -645,12 +645,10 @@ auth.onAuthStateChanged(async user => {
       } else if (item === "pelle") {
         img.src = "shovel.png";
       }
-      // Tu peux ajouter d'autres items ici...
 
       img.className = "hotbar-item";
       slot.appendChild(img);
 
-      // Afficher le nombre si l'item est stackable (ex: "bois(5)")
       const match = item.match(/\((\d+)\)/);
       if (match) {
         const countEl = document.createElement("div");
@@ -660,7 +658,7 @@ auth.onAuthStateChanged(async user => {
       }
     }
 
-    // Sélection du slot
+    // Gestion du clic sur le slot
     slot.onclick = () => {
       selectedSlot = i;
       drawHotbar(data);
@@ -670,29 +668,10 @@ auth.onAuthStateChanged(async user => {
   }
 }
 
-    // Gestion du clic sur un slot
-    slot.onclick = () => {
-      selectedSlot = i;
-      drawHotbar(data);
-    };
-
-    container.appendChild(slot);
-  }
-}
-
-
-      slot.onclick = () => {
-        selectedSlot = i;
-        drawHotbar(data);
-      };
-
-      container.appendChild(slot);
-    }
-  }
-
-  hotbarRef.on("value", snap => {
-    drawHotbar(snap.val());
-  });
+// Rafraîchir la hotbar quand les données changent
+hotbarRef.on("value", snap => {
+  drawHotbar(snap.val());
+});
 
   // 🎯 Sélection par molette
   window.addEventListener("wheel", (e) => {
