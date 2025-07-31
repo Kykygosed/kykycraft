@@ -9,26 +9,78 @@
       font-family: Arial, sans-serif;
       background-color: #0e1621;
       color: white;
+      display: flex;
     }
-    .container {
+
+    .sidebar {
+      width: 200px;
+      background-color: #0b121a;
+      height: 100vh;
+      position: fixed;
+      left: 0;
+      top: 0;
+      padding: 20px;
+      box-sizing: border-box;
+      border-right: 2px solid #fcbf49;
+    }
+
+    .sidebar h2 {
+      font-size: 20px;
+      margin-bottom: 10px;
+    }
+
+    .main {
       margin-left: 200px;
       padding: 40px;
+      width: 100%;
     }
+
+    h1 {
+      font-size: 32px;
+      margin-bottom: 10px;
+    }
+
+    p.description {
+      font-size: 16px;
+      color: #ccc;
+      margin-bottom: 40px;
+    }
+
     .card {
       background-color: #1c1f26;
       border: 2px solid #fcbf49;
       border-radius: 10px;
-      padding: 20px;
-      max-width: 600px;
+      padding: 30px;
+      max-width: 700px;
+      margin-top: 30px;
     }
+
+    .card h3 {
+      font-size: 24px;
+      margin-top: 0;
+    }
+
+    .card p {
+      font-size: 16px;
+      color: #ccc;
+    }
+
     .status-bar {
-      background-color: #252a33;
-      padding: 10px;
+      margin-top: 20px;
+      padding: 15px;
       border-radius: 5px;
-      margin-top: 10px;
+      background-color: #2c2f3e;
+      font-weight: bold;
     }
-    .status-bar.green { background-color: #2e7d32; }
-    .status-bar.red { background-color: #c62828; }
+
+    .status-bar.green {
+      background-color: #2e7d32;
+    }
+
+    .status-bar.red {
+      background-color: #c62828;
+    }
+
     .popup {
       position: fixed;
       top: 50%;
@@ -42,6 +94,7 @@
       display: none;
       width: 400px;
     }
+
     .popup input {
       width: 100%;
       margin-bottom: 10px;
@@ -51,6 +104,7 @@
       color: white;
       border-radius: 5px;
     }
+
     .popup button {
       background: #fcbf49;
       border: none;
@@ -60,9 +114,11 @@
       border-radius: 5px;
       cursor: pointer;
     }
+
     .popup h3 {
       margin-top: 0;
     }
+
     .overlay {
       position: fixed;
       background: rgba(0,0,0,0.7);
@@ -70,12 +126,50 @@
       z-index: 998;
       display: none;
     }
+
+    button.inscrire {
+      background: #fcbf49;
+      color: black;
+      border: none;
+      padding: 12px 20px;
+      font-size: 16px;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+.status-bar {
+  margin-top: 20px;
+  padding: 15px;
+  border-radius: 5px;
+  background-color: #2c2f3e;
+  font-weight: bold;
+  color: #bbb; /* texte gris */
+  width: 100%;
+  box-sizing: border-box;
+
+  display: flex;              /* on passe en flex */
+  justify-content: center;    /* centre horizontalement le contenu */
+  align-items: center;        /* centre verticalement */
+  gap: 8px;                   /* espace entre image et texte */
+}
+
+.status-bar img {
+  height: 20px;
+  width: auto;
+  border-radius: 3px;
+  margin: 0;
+  display: inline-block;
+}
+
   </style>
 </head>
 <body>
-  <div class="container">
+  <div class="sidebar">
+    <h2>Kyky Events</h2>
+  </div>
+
+  <div class="main">
     <h1>Évènements</h1>
-    <p>L'endroit où vous pourrez peut-être rejoindre les évènements de kyky</p>
+    <p class="description">L'endroit où vous pourrez peut-être rejoindre les évènements de kyky</p>
 
     <div class="card">
       <h3 id="event-title">Titre</h3>
@@ -92,20 +186,20 @@
     <button onclick="submitAnswers()">Inscription</button>
   </div>
 
-  <!-- Firebase + Auth -->
+  <!-- Firebase -->
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
   <script>
-const firebaseConfig = {
-  apiKey: "AIzaSyDQGmbiwh5LTVq0Wp1q9NrSQzs86vER2XM",
-  authDomain: "kychat-45596.firebaseapp.com",
-  databaseURL: "https://kychat-45596-default-rtdb.firebaseio.com",
-  projectId: "kychat-45596",
-  storageBucket: "kychat-45596.firebasestorage.app",
-  messagingSenderId: "104462848972",
-  appId: "1:104462848972:web:7ac49e63008e9a11150369"
-};
+    const firebaseConfig = {
+      apiKey: "AIzaSyDQGmbiwh5LTVq0Wp1q9NrSQzs86vER2XM",
+      authDomain: "kychat-45596.firebaseapp.com",
+      databaseURL: "https://kychat-45596-default-rtdb.firebaseio.com",
+      projectId: "kychat-45596",
+      storageBucket: "kychat-45596.appspot.com",
+      messagingSenderId: "104462848972",
+      appId: "1:104462848972:web:7ac49e63008e9a11150369"
+    };
 
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
@@ -129,45 +223,97 @@ const firebaseConfig = {
       }
     });
 
-    function loadEvent() {
+  function loadEvent() {
+  let currentState = null;
+  let currentUserState = null;
+
+  // Fonction pour mettre à jour le statut
+  function updateStatus() {
+    if (!currentState) return;
+
+    // Mise à jour du titre & description
+    if (currentState === "closed") {
+      titleEl.innerText = "Aucun évènement n'est en cours.";
+      descEl.innerText = "Tenez vous au courant sur discord.";
+    } else {
       db.ref("event").once("value").then(snap => {
         const ev = snap.val();
-        if (ev) {
-          titleEl.innerText = ev.title || "Évènement";
-          descEl.innerText = ev.description || "";
-        }
-      });
-
-      db.ref("state").on("value", async snap => {
-        const state = snap.val();
-        let userState = null;
-
-        if (currentUser) {
-          const userAnswers = await db.ref("answers/" + currentUser.uid + "/userstate").once("value");
-          userState = userAnswers.val();
-        }
-
-        if (state === "closed") {
-          titleEl.innerText = "Aucun évènement.";
-          descEl.innerText = "Vous trouverez les informations d'events sur Discord.";
-          statusEl.innerText = "Aucun évènement n'est en cours.";
-        } else if (state === "nowclosed") {
-          statusEl.innerText = "Les inscriptions sont terminées.";
-        } else if (state === "open") {
-          if (userState === "pending") {
-            statusEl.innerText = "En attente...";
-          } else if (userState === "accepted") {
-            statusEl.classList.add("green");
-            statusEl.innerText = "✅ Vous êtes accepté !";
-          } else if (userState === "denied") {
-            statusEl.classList.add("red");
-            statusEl.innerText = "❌ Vous êtes refusé.";
-          } else {
-            statusEl.innerHTML = `<button onclick="openPopup()">S'inscrire !</button>`;
-          }
-        }
+        titleEl.innerText = ev?.title || "Évènement";
+        descEl.innerText = ev?.description || "";
       });
     }
+
+    statusEl.className = "status-bar"; // reset classes
+    statusEl.innerHTML = ""; // reset contenu
+
+    let img = document.createElement("img");
+    img.style.maxWidth = "100%";
+    img.style.marginBottom = "10px";
+    img.style.borderRadius = "10px";
+
+    let statusText = document.createElement("div");
+    statusText.style.textAlign = "center";
+
+    if (currentState === "closed") {
+      img.src = "https://imgur.com/OMMmKTZ.jpeg";
+      statusText.innerText = "Aucun évènement n'est en cours.";
+      statusEl.appendChild(img);
+      statusEl.appendChild(statusText);
+    } else if (currentState === "nowclosed") {
+      img.src = "https://imgur.com/QKya4tB.jpeg";
+      statusText.innerText = "Les inscriptions sont terminées.";
+      statusEl.appendChild(img);
+      statusEl.appendChild(statusText);
+    } else if (currentState === "open") {
+      if (currentUserState === "pending") {
+        img.src = "https://imgur.com/7TcPaOZ.jpeg";
+        statusText.innerText = "En attente: un admin vous prendra en charge.";
+        statusEl.appendChild(img);
+        statusEl.appendChild(statusText);
+      } else if (currentUserState === "accepted") {
+        statusEl.classList.add("green");
+        statusText.innerText = "Vous êtes accepté !";
+        statusEl.appendChild(statusText);
+      } else if (currentUserState === "denied") {
+        statusEl.classList.add("red");
+        statusText.innerText = "Vous êtes refusé.";
+        statusEl.appendChild(statusText);
+      } else {
+        const btn = document.createElement("button");
+        btn.innerText = "S'inscrire !";
+        btn.style.width = "100%";
+        btn.style.padding = "10px";
+        btn.style.fontSize = "16px";
+        btn.style.fontWeight = "bold";
+        btn.style.color = "white";
+        btn.style.backgroundColor = "#007BFF";
+        btn.style.border = "none";
+        btn.style.borderRadius = "8px";
+        btn.style.cursor = "pointer";
+        btn.style.transition = "background-color 0.3s ease";
+        btn.onmouseover = () => btn.style.backgroundColor = "#0056b3";
+        btn.onmouseout = () => btn.style.backgroundColor = "#007BFF";
+        btn.onclick = openPopup;
+        statusEl.appendChild(btn);
+      }
+    }
+  }
+
+  // Écouteur sur state (évènement)
+  db.ref("state").on("value", snap => {
+    currentState = snap.val();
+    updateStatus();
+  });
+
+  // Écouteur sur userState (réponses de l'utilisateur)
+  if (currentUser) {
+    db.ref("answers/" + currentUser.uid + "/userstate").on("value", snap => {
+      currentUserState = snap.val();
+      updateStatus();
+    });
+  }
+}
+
 
     function openPopup() {
       overlay.style.display = "block";
