@@ -9,22 +9,14 @@
     @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
 
     html, body {
-  margin: 0;
-  padding: 0;
-  overflow: hidden; /* empêche le scroll */
-  height: 100%;
-  width: 100%;
-}
-
-#gameCanvas {
-  position: relative; /* important si tu ajoutes des éléments en absolute dedans */
-  display: block; /* éviter un petit espace blanc sous le canvas */
-  width: 100vw;
-  height: 100vh;
-  background-color: #eee; /* ou une autre couleur pour debug */
-}
-
-
+      margin: 0; padding: 0; overflow: hidden; background: black;
+      font-family: 'Press Start 2P', monospace;
+      user-select: none;
+    }
+    #gameCanvas {
+      display: block;
+      background: black;
+    }
     #loading {
       position: fixed;
       top: 0; left: 0; width: 100vw; height: 100vh;
@@ -245,8 +237,7 @@
     <button id="quitBtn">Sauvegarder et Quitter</button>
   </div>
 
-  <canvas id="gameCanvas" width="800" height="600"></canvas>
-
+  <canvas id="gameCanvas"></canvas>
   <!-- Affichage des cœurs -->
 <div id="heartsContainer" style="position:fixed; top:10px; right:10px; z-index:20;"></div>
 
@@ -332,9 +323,6 @@ let nearbyTree = null;
 let droppedItems = [];
 const woodImg = new Image();
 woodImg.src = "wood.png";
-const pathImg = new Image();
-pathImg.src = "path2.png";  // ou "path.png" selon le nom exact
-const tileSize = 64; // ou la taille que tu utilises pour tes tuiles (images)
 
 
 const timeDisplay = document.createElement("div");
@@ -437,20 +425,6 @@ async function loadOrGenerateTrees() {
     }
   }
 }
-let pathPositions = [];
-
-async function loadOrGeneratePaths() {
-  const pathsRef = db.ref(`users/${uid}/worlds/${currentWorld}/worldinfo/paths`);
-  const snap = await pathsRef.once("value");
-
-  if (snap.exists()) {
-    pathPositions = Object.values(snap.val());
-  } else {
-    // Optionnel : génération aléatoire ou vide si pas besoin
-    pathPositions = [];
-  }
-}
-
 let mobs = [];
 const mobSize = 20;
 const mobSpeed = 1;
@@ -666,7 +640,6 @@ function gameLoop() {
   breakBtn.style.display = nearbyTree ? "block" : "none";
 
   drawMobs();
-  drawPaths();
 
   coordsEl.textContent = `X: ${player.x.toFixed(2)} Y: ${player.y.toFixed(2)}`;
   timeDisplay.textContent = `Jour ${currentDay} - ${getGameTimeStr()}`;
@@ -757,11 +730,6 @@ auth.onAuthStateChanged(async user => {
   }
 
   uid = user.uid;
-
-  // **IMPORTANT** : déclaration de map en tout début, avant utilisation
-  const map = document.getElementById("gameCanvas"); // Assure-toi que cet ID existe dans ton HTML
-  const tileSize = 64; // Taille d'une case (ajuste si besoin)
-
   document.getElementById("loading").style.display = "flex";
 
   // Chargement de la world actuelle
@@ -810,40 +778,6 @@ auth.onAuthStateChanged(async user => {
   uniqueMode = uniqueSnap.exists() && uniqueSnap.val() === true;
 
   await loadOrGenerateTrees();
-
- // Assure-toi que map est bien défini et que tileSize est correct
-
-// Charger et afficher les paths
-const pathRef = db.ref(`users/${uid}/worlds/${currentWorld}/worldinfo/paths`);
-const snapshot = await pathRef.once("value");
-const paths = snapshot.val();
-
-if (paths) {
-  // Nettoyer l'affichage avant d'ajouter (optionnel)
-  map.querySelectorAll(".path-tile").forEach(el => el.remove());
-
-  for (const key in paths) {
-    const { x, y } = paths[key];
-
-    const pathImg = document.createElement("img");
-    pathImg.src = "path2.png";
-    pathImg.className = "path-tile"; // classe pour pouvoir cibler facilement
-    pathImg.style.position = "absolute";
-
-    // Si x, y sont des coordonnées en pixels, on place directement
-    pathImg.style.left = `${x}px`;
-    pathImg.style.top = `${y}px`;
-
-    // Taille : on utilise tileSize pour correspondre à ta grille
-    pathImg.style.width = `${tileSize}px`;
-    pathImg.style.height = `${tileSize}px`;
-
-    // Ajout dans le container map
-    map.appendChild(pathImg);
-  }
-}
-
-
   await db.ref(`presence/${uid}`).set(true);
   updateHeartsUI();
 
@@ -908,34 +842,6 @@ if (paths) {
     hotbarRef.once("value").then(snap => {
       drawHotbar(snap.val());
     });
-  });
-
-  map.addEventListener("click", async (e) => {
-    const hotbarSnap = await hotbarRef.once("value");
-    const hotbar = hotbarSnap.val();
-    const selectedItem = hotbar[selectedSlot.toString()];
-
-    if (selectedItem !== "pelle") return;
-
-    // Coordonnées relatives à la carte
-    const rect = map.getBoundingClientRect();
-    const x = Math.floor((e.clientX - rect.left) / tileSize) * tileSize;
-    const y = Math.floor((e.clientY - rect.top) / tileSize) * tileSize;
-
-    // Création visuelle
-    const pathImg = document.createElement("img");
-    pathImg.src = "path2.png";
-    pathImg.style.position = "absolute";
-    pathImg.style.left = `${x}px`;
-    pathImg.style.top = `${y}px`;
-    pathImg.style.width = `${tileSize}px`;
-    pathImg.style.height = `${tileSize}px`;
-    map.appendChild(pathImg);
-
-    // Enregistrement Firebase
-    const pathRef = db.ref(`users/${uid}/worlds/${currentWorld}/worldinfo/paths`);
-    const key = `${x}_${y}`;
-    await pathRef.child(key).set({ x, y });
   });
 
   // --- MENU DE CRAFT (touche E pour ouvrir) ---
@@ -1035,7 +941,6 @@ if (paths) {
 
 
 
-
   // Variable globale pour stocker l'arbre proche
   nearbyTree = null;
 
@@ -1131,13 +1036,6 @@ function drawMobs() {
         if (hearts <= 0) handleDeath();
       }
     }
-  }
-}
-function drawPaths() {
-  for (const path of paths) {
-    const screenX = canvas.width / 2 + (path.x - player.x);
-    const screenY = canvas.height / 2 + (path.y - player.y);
-    ctx.drawImage(pathImg, screenX, screenY, tileSize, tileSize);
   }
 }
 
