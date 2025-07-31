@@ -779,7 +779,7 @@ auth.onAuthStateChanged(async user => {
 
   await loadOrGenerateTrees();
   // 🔁 Charger les paths déjà placés
-const pathRef = db.ref(`users/${uid}/worlds/${currentWorld}/worldinfos/paths`);
+const pathRef = db.ref(`users/${uid}/worlds/${currentWorld}/worldinfo/paths`);
 const snapshot = await pathRef.once("value");
 const paths = snapshot.val();
 
