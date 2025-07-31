@@ -237,7 +237,7 @@
     <button id="quitBtn">Sauvegarder et Quitter</button>
   </div>
 
-  <canvas id="gameCanvas"></canvas>
+  <div id="gameCanvas" style="position: relative; width: 800px; height: 600px;"></div>
   <!-- Affichage des cœurs -->
 <div id="heartsContainer" style="position:fixed; top:10px; right:10px; z-index:20;"></div>
 
@@ -784,25 +784,38 @@ auth.onAuthStateChanged(async user => {
 
   await loadOrGenerateTrees();
 
-  // 🔁 Charger les paths déjà placés
-  const pathRef = db.ref(`users/${uid}/worlds/${currentWorld}/worldinfo/paths`);
-  const snapshot = await pathRef.once("value");
-  const paths = snapshot.val();
+ // Assure-toi que map est bien défini et que tileSize est correct
 
-  if (paths) {
-    for (const key in paths) {
-      const { x, y } = paths[key];
+// Charger et afficher les paths
+const pathRef = db.ref(`users/${uid}/worlds/${currentWorld}/worldinfo/paths`);
+const snapshot = await pathRef.once("value");
+const paths = snapshot.val();
 
-      const pathImg = document.createElement("img");
-      pathImg.src = "path.png";
-      pathImg.style.position = "absolute";
-      pathImg.style.left = `${x}px`;
-      pathImg.style.top = `${y}px`;
-      pathImg.style.width = `${tileSize}px`;
-      pathImg.style.height = `${tileSize}px`;
-      map.appendChild(pathImg);
-    }
+if (paths) {
+  // Nettoyer l'affichage avant d'ajouter (optionnel)
+  map.querySelectorAll(".path-tile").forEach(el => el.remove());
+
+  for (const key in paths) {
+    const { x, y } = paths[key];
+
+    const pathImg = document.createElement("img");
+    pathImg.src = "path.png";
+    pathImg.className = "path-tile"; // classe pour pouvoir cibler facilement
+    pathImg.style.position = "absolute";
+
+    // Si x, y sont des coordonnées en pixels, on place directement
+    pathImg.style.left = `${x}px`;
+    pathImg.style.top = `${y}px`;
+
+    // Taille : on utilise tileSize pour correspondre à ta grille
+    pathImg.style.width = `${tileSize}px`;
+    pathImg.style.height = `${tileSize}px`;
+
+    // Ajout dans le container map
+    map.appendChild(pathImg);
   }
+}
+
 
   await db.ref(`presence/${uid}`).set(true);
   updateHeartsUI();
