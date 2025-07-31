@@ -250,15 +250,13 @@
     <button id="exploreBtn">Explorer</button>
     <button id="quitBtnTop">Quitter</button>
   </div>
-  <div id="craftMenu" style="display:none; position:fixed; top:50%; left:50%; transform: translate(-50%, -50%);
-  background: rgba(0,0,0,0.8); padding: 20px; border-radius: 10px; color: white; z-index: 1000;">
-  <h3>Menu de fabrication</h3>
-  <div>
-    <button id="craftShovelBtn">Bois x5 - Pelle</button>
-  </div>
-  <div style="margin-top:10px; text-align:right;">
-    <button id="closeCraftMenuBtn">Fermer</button>
-  </div>
+ <div id="craftMenu" style="display:none; position: fixed; top: 50px; left: 50px; background: white; border: 2px solid black; padding: 10px; z-index: 100;">
+  <h3>Menu de Fabrication</h3>
+  <button id="craftShovelBtn">Bois x5 → Pelle</button>
+  <br><br>
+  <button id="closeCraftMenuBtn">Fermer</button>
+</div>
+
 </div>
 
 </div>
@@ -847,21 +845,27 @@ auth.onAuthStateChanged(async user => {
   });
 
   // --- MENU DE CRAFT PELLE ---
-  const craftMenu = document.getElementById('craftMenu');
-  const craftShovelBtn = document.getElementById('craftShovelBtn');
-  const closeCraftMenuBtn = document.getElementById('closeCraftMenuBtn');
+ const craftMenu = document.getElementById('craftMenu');
+const craftShovelBtn = document.getElementById('craftShovelBtn');
+const closeCraftMenuBtn = document.getElementById('closeCraftMenuBtn');
 
-  document.addEventListener('keydown', (e) => {
-    if (e.key.toLowerCase() === 'e') {
-      const active = document.activeElement;
-      if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA')) return;
-      craftMenu.style.display = craftMenu.style.display === 'none' ? 'block' : 'none';
+document.addEventListener('keydown', (e) => {
+  if (e.key.toLowerCase() === 'e') {
+    const active = document.activeElement;
+    if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA')) return;
+
+    if (craftMenu.style.display === 'none' || craftMenu.style.display === '') {
+      craftMenu.style.display = 'block';
+    } else {
+      craftMenu.style.display = 'none';
     }
-  });
+  }
+});
 
-  closeCraftMenuBtn.onclick = () => {
-    craftMenu.style.display = 'none';
-  };
+closeCraftMenuBtn.onclick = () => {
+  craftMenu.style.display = 'none';
+};
+
 
   function countWood(hotbar) {
     let count = 0;
