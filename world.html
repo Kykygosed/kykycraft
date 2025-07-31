@@ -782,6 +782,7 @@ auth.onAuthStateChanged(async user => {
 const pathRef = db.ref(`users/${uid}/worlds/${currentWorld}/worldinfo/paths`);
 const snapshot = await pathRef.once("value");
 const paths = snapshot.val();
+const tileSize = 64;
 
 if (paths) {
   for (const key in paths) {
