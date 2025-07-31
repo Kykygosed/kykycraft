@@ -442,9 +442,11 @@ function handleDeath() {
   document.getElementById("exploreBtn").style.display = uniqueMode ? "inline-block" : "none";
   document.getElementById("quitBtnTop").style.display = "inline-block";
 
+  // Lancer le son de mort
   const deathSound = new Audio("death.mp3");
   deathSound.play().catch(() => {});
 
+  // Supprimer le monde si en mode unique
   if (uniqueMode) {
     const worldRef = db.ref(`users/${uid}/worlds/${currentWorld}`);
     worldRef.remove()
@@ -452,18 +454,21 @@ function handleDeath() {
       .catch(err => console.error("Erreur lors de la suppression du monde :", err));
   }
 
+  // Bouton "Revivre"
   document.getElementById("respawnBtn").onclick = async () => {
     if (isDead) {
       isDead = false;
 
-      // Rendre visible le perso
+      // Rendre visible le joueur
       if (playerElem) playerElem.style.display = "block";
 
       document.getElementById("deathScreen").style.display = "none";
 
+      // Remettre les cœurs
       hearts = 10;
       updateHeartsUI();
 
+      // Revenir aux coordonnées de base
       player.x = 1150.00;
       player.y = 1150.00;
 
@@ -476,6 +481,7 @@ function handleDeath() {
     }
   };
 
+  // Bouton "Explorer" (mode unique)
   document.getElementById("exploreBtn").onclick = () => {
     if (isDead && uniqueMode) {
       isDead = false;
@@ -487,36 +493,7 @@ function handleDeath() {
     }
   };
 
-  document.getElementById("quitBtnTop").onclick = () => {
-    location.href = "index.html";
-  };
-}
-
-
-  document.getElementById("exploreBtn").onclick = () => {
-    if (isDead && uniqueMode) {
-      isDead = false;
-
-      if(playerElem) playerElem.style.display = "block";
-
-      document.getElementById("deathScreen").style.display = "none";
-      startUniqueExplore();
-    }
-  };
-
-  document.getElementById("quitBtnTop").onclick = () => {
-    location.href = "index.html";
-  };
-}
-
-  document.getElementById("exploreBtn").onclick = () => {
-    if (isDead && uniqueMode) {
-      isDead = false;
-      document.getElementById("deathScreen").style.display = "none";
-      startUniqueExplore();
-    }
-  };
-
+  // Bouton "Quitter"
   document.getElementById("quitBtnTop").onclick = () => {
     location.href = "index.html";
   };
