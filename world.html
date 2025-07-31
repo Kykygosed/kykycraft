@@ -13,10 +13,14 @@
       font-family: 'Press Start 2P', monospace;
       user-select: none;
     }
-    #gameCanvas {
-      display: block;
-      background: black;
-    }
+#gameCanvas {
+  position: relative;
+  width: 800px; /* ou ta largeur */
+  height: 600px; /* ou ta hauteur */
+  background-color: #eee; /* juste pour test */
+  overflow: hidden; /* éviter débordements */
+}
+
     #loading {
       position: fixed;
       top: 0; left: 0; width: 100vw; height: 100vh;
