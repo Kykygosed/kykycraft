@@ -432,16 +432,18 @@ function spawnMobsIfNight(playerPosition) {
 
 function handleDeath() {
   isDead = true;
+
+  // Faire disparaître le perso (exemple si perso est un élément DOM)
+  const playerElem = document.getElementById("player"); // adapte selon ton code
+  if(playerElem) playerElem.style.display = "none";
+
   document.getElementById("deathScreen").style.display = "flex";
   document.getElementById("respawnBtn").style.display = uniqueMode ? "none" : "inline-block";
   document.getElementById("exploreBtn").style.display = uniqueMode ? "inline-block" : "none";
   document.getElementById("quitBtnTop").style.display = "inline-block";
 
-  // Jouer le son de mort
   const deathSound = new Audio("death.mp3");
-  deathSound.play().catch(err => {
-    console.warn("Impossible de jouer le son de mort :", err);
-  });
+  deathSound.play().catch(() => {});
 
   if (uniqueMode) {
     const worldRef = db.ref(`users/${uid}/worlds/${currentWorld}`);
@@ -453,6 +455,10 @@ function handleDeath() {
   document.getElementById("respawnBtn").onclick = async () => {
     if (isDead) {
       isDead = false;
+
+      // Rendre visible le perso
+      if(playerElem) playerElem.style.display = "block";
+
       document.getElementById("deathScreen").style.display = "none";
 
       hearts = 10;
@@ -469,6 +475,22 @@ function handleDeath() {
       respawnPlayer();
     }
   };
+
+  document.getElementById("exploreBtn").onclick = () => {
+    if (isDead && uniqueMode) {
+      isDead = false;
+
+      if(playerElem) playerElem.style.display = "block";
+
+      document.getElementById("deathScreen").style.display = "none";
+      startUniqueExplore();
+    }
+  };
+
+  document.getElementById("quitBtnTop").onclick = () => {
+    location.href = "index.html";
+  };
+}
 
   document.getElementById("exploreBtn").onclick = () => {
     if (isDead && uniqueMode) {
