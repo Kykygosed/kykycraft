@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Événements Kyky</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background-color: #0e1621;
+      color: white;
+    }
+    .container {
+      margin-left: 200px;
+      padding: 40px;
+    }
+    .card {
+      background-color: #1c1f26;
+      border: 2px solid #fcbf49;
+      border-radius: 10px;
+      padding: 20px;
+      max-width: 600px;
+    }
+    .status-bar {
+      background-color: #252a33;
+      padding: 10px;
+      border-radius: 5px;
+      margin-top: 10px;
+    }
+    .status-bar.green { background-color: #2e7d32; }
+    .status-bar.red { background-color: #c62828; }
+    .popup {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: #1e1e2f;
+      padding: 30px;
+      border-radius: 10px;
+      box-shadow: 0 0 20px rgba(255,255,255,0.2);
+      z-index: 999;
+      display: none;
+      width: 400px;
+    }
+    .popup input {
+      width: 100%;
+      margin-bottom: 10px;
+      padding: 8px;
+      background: #2c2f3e;
+      border: none;
+      color: white;
+      border-radius: 5px;
+    }
+    .popup button {
+      background: #fcbf49;
+      border: none;
+      padding: 10px;
+      width: 100%;
+      font-weight: bold;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    .popup h3 {
+      margin-top: 0;
+    }
+    .overlay {
+      position: fixed;
+      background: rgba(0,0,0,0.7);
+      top: 0; left: 0; right: 0; bottom: 0;
+      z-index: 998;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Évènements</h1>
+    <p>L'endroit où vous pourrez peut-être rejoindre les évènements de kyky</p>
+
+    <div class="card">
+      <h3 id="event-title">Titre</h3>
+      <p id="event-description">Description</p>
+      <div id="status" class="status-bar">⏳ Statut</div>
+    </div>
+  </div>
+
+  <!-- POPUP -->
+  <div class="overlay" id="overlay"></div>
+  <div class="popup" id="popup">
+    <h3>Inscription</h3>
+    <form id="inscriptionForm"></form>
+    <button onclick="submitAnswers()">Inscription</button>
+  </div>
+
+  <!-- Firebase + Auth -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyDQGmbiwh5LTVq0Wp1q9NrSQzs86vER2XM",
+      authDomain: "kychat-45596.firebaseapp.com",
+      databaseURL: "https://kychat-45596-default-rtdb.firebaseio.com",
+      projectId: "kychat-45596",
+      storageBucket: "kychat-45596.firebasestorage.app",
+      messagingSenderId: "104462848972",
+      appId: "1:104462848972:web:7ac49e63008e9a11150369"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+    const auth = firebase.auth();
+
+    const titleEl = document.getElementById("event-title");
+    const descEl = document.getElementById("event-description");
+    const statusEl = document.getElementById("status");
+    const overlay = document.getElementById("overlay");
+    const popup = document.getElementById("popup");
+    const form = document.getElementById("inscriptionForm");
+
+    let currentUser = null;
+
+    // Auth simple par prompt (exemple)
+    auth.onAuthStateChanged(user => {
+      if (user) {
+        currentUser = user;
+        loadEvent();
+      } else {
+        const email = prompt("Entrez votre email pour vous connecter / créer un compte");
+        const pass = prompt("Mot de passe (nouveau ou existant)");
+        auth.signInWithEmailAndPassword(email, pass)
+          .catch(() => {
+            auth.createUserWithEmailAndPassword(email, pass);
+          });
+      }
+    });
+
+    function loadEvent() {
+      db.ref("event").once("value").then(snap => {
+        const ev = snap.val();
+        if (ev) {
+          titleEl.innerText = ev.title || "Évènement";
+          descEl.innerText = ev.description || "";
+        }
+      });
+
+      db.ref("state").on("value", async snap => {
+        const state = snap.val();
+        let userState = null;
+
+        if (currentUser) {
+          const userAnswers = await db.ref("answers/" + currentUser.uid + "/userstate").once("value");
+          userState = userAnswers.val();
+        }
+
+        if (state === "closed") {
+          titleEl.innerText = "Aucun évènement.";
+          descEl.innerText = "Vous trouverez les informations d'events sur Discord.";
+          statusEl.innerText = "Aucun évènement n'est en cours.";
+        } else if (state === "nowclosed") {
+          statusEl.innerText = "Les inscriptions sont terminées.";
+        } else if (state === "open") {
+          if (userState === "pending") {
+            statusEl.innerText = "En attente...";
+          } else if (userState === "accepted") {
+            statusEl.classList.add("green");
+            statusEl.innerText = "✅ Vous êtes accepté !";
+          } else if (userState === "denied") {
+            statusEl.classList.add("red");
+            statusEl.innerText = "❌ Vous êtes refusé.";
+          } else {
+            statusEl.innerHTML = `<button onclick="openPopup()">S'inscrire !</button>`;
+          }
+        }
+      });
+    }
+
+    function openPopup() {
+      overlay.style.display = "block";
+      popup.style.display = "block";
+      form.innerHTML = "";
+
+      db.ref("questions").once("value").then(snapshot => {
+        const questions = snapshot.val() || [];
+        questions.forEach((q, i) => {
+          const label = document.createElement("label");
+          label.innerText = q;
+          const input = document.createElement("input");
+          input.type = "text";
+          input.required = true;
+          input.name = i;
+          form.appendChild(label);
+          form.appendChild(input);
+        });
+      });
+    }
+
+    function submitAnswers() {
+      const inputs = form.querySelectorAll("input");
+      const data = {};
+      let allFilled = true;
+
+      inputs.forEach(input => {
+        if (!input.value.trim()) allFilled = false;
+        data[input.name] = input.value.trim();
+      });
+
+      if (!allFilled) {
+        alert("Tous les champs sont requis !");
+        return;
+      }
+
+      db.ref("answers/" + currentUser.uid).set({
+        ...data,
+        userstate: "pending"
+      }).then(() => {
+        overlay.style.display = "none";
+        popup.style.display = "none";
+        alert("Inscription envoyée !");
+      });
+    }
+  </script>
+</body>
+</html>
