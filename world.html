@@ -9,17 +9,21 @@
     @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
 
     html, body {
-      margin: 0; padding: 0; overflow: hidden; background: black;
-      font-family: 'Press Start 2P', monospace;
-      user-select: none;
-    }
-#gameCanvas {
-  position: relative;
-  width: 800px; /* ou ta largeur */
-  height: 600px; /* ou ta hauteur */
-  background-color: #eee; /* juste pour test */
-  overflow: hidden; /* éviter débordements */
+  margin: 0;
+  padding: 0;
+  overflow: hidden; /* empêche le scroll */
+  height: 100%;
+  width: 100%;
 }
+
+#gameCanvas {
+  position: relative; /* important si tu ajoutes des éléments en absolute dedans */
+  display: block; /* éviter un petit espace blanc sous le canvas */
+  width: 100vw;
+  height: 100vh;
+  background-color: #eee; /* ou une autre couleur pour debug */
+}
+
 
     #loading {
       position: fixed;
