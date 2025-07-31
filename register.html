@@ -189,6 +189,14 @@
   <button onclick="login()">Connexion</button>
   <button onclick="signup()" style="margin-top: 10px; background-color: #444;">Créer un compte</button>
 </div>
+<!-- POPUP -->
+<div class="overlay" id="overlay"></div>
+<div class="popup" id="popup">
+  <h3>Inscription</h3>
+  <form id="inscriptionForm"></form>
+  <button id="submitBtn">Inscription</button>
+
+</div>
 
 
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
@@ -370,25 +378,30 @@ function updateStatus() {
 }
 
 
-  function openPopup() {
-    overlay.style.display = "block";
-    popup.style.display = "block";
-    form.innerHTML = "";
+function openPopup() {
+  overlay.style.display = "block";
+  popup.style.display = "block";
+  form.innerHTML = "";
 
-    db.ref("questions").once("value").then(snapshot => {
-      const questions = snapshot.val() || [];
-      questions.forEach((q, i) => {
-        const label = document.createElement("label");
-        label.innerText = q;
-        const input = document.createElement("input");
-        input.type = "text";
-        input.required = true;
-        input.name = i;
-        form.appendChild(label);
-        form.appendChild(input);
-      });
+  db.ref("questions").once("value").then(snapshot => {
+    const questions = snapshot.val() || [];
+    questions.forEach((q, i) => {
+      const label = document.createElement("label");
+      label.innerText = q;
+      const input = document.createElement("input");
+      input.type = "text";
+      input.required = true;
+      input.name = i;
+      form.appendChild(label);
+      form.appendChild(input);
     });
-  }
+
+    // Attacher proprement l’événement au bouton
+    const submitBtn = document.getElementById("submitBtn");
+    submitBtn.onclick = submitAnswers;
+  });
+}
+
 
   function submitAnswers() {
   const inputs = form.querySelectorAll("input");
