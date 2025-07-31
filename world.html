@@ -778,6 +778,26 @@ auth.onAuthStateChanged(async user => {
   uniqueMode = uniqueSnap.exists() && uniqueSnap.val() === true;
 
   await loadOrGenerateTrees();
+  // 🔁 Charger les paths déjà placés
+const pathRef = db.ref(`users/${uid}/worlds/${currentWorld}/worldinfos/paths`);
+const snapshot = await pathRef.once("value");
+const paths = snapshot.val();
+
+if (paths) {
+  for (const key in paths) {
+    const { x, y } = paths[key];
+
+    const pathImg = document.createElement("img");
+    pathImg.src = "path.png";
+    pathImg.style.position = "absolute";
+    pathImg.style.left = `${x}px`;
+    pathImg.style.top = `${y}px`;
+    pathImg.style.width = `${tileSize}px`;
+    pathImg.style.height = `${tileSize}px`;
+    map.appendChild(pathImg);
+  }
+}
+
   await db.ref(`presence/${uid}`).set(true);
   updateHeartsUI();
 
@@ -843,6 +863,36 @@ auth.onAuthStateChanged(async user => {
       drawHotbar(snap.val());
     });
   });
+const map = document.getElementById("map"); // L'élément de la carte (ajuste l'ID si différent)
+const tileSize = 64; // Taille d'une case (à adapter selon ta grille visuelle)
+
+map.addEventListener("click", async (e) => {
+  const hotbarSnap = await hotbarRef.once("value");
+  const hotbar = hotbarSnap.val();
+  const selectedItem = hotbar[selectedSlot.toString()];
+
+  if (selectedItem !== "pelle") return;
+
+  // Coordonnées relatives à la carte
+  const rect = map.getBoundingClientRect();
+  const x = Math.floor((e.clientX - rect.left) / tileSize) * tileSize;
+  const y = Math.floor((e.clientY - rect.top) / tileSize) * tileSize;
+
+  // Création visuelle
+  const pathImg = document.createElement("img");
+  pathImg.src = "path.png";
+  pathImg.style.position = "absolute";
+  pathImg.style.left = `${x}px`;
+  pathImg.style.top = `${y}px`;
+  pathImg.style.width = `${tileSize}px`;
+  pathImg.style.height = `${tileSize}px`;
+  map.appendChild(pathImg);
+
+  // Enregistrement Firebase
+  const pathRef = db.ref(`users/${uid}/worlds/${currentWorld}/worldinfos/paths`);
+  const key = `${x}_${y}`;
+  await pathRef.child(key).set({ x, y });
+});
 
   // --- MENU DE CRAFT (touche E pour ouvrir) ---
   const craftMenu = document.getElementById("craftMenu");
