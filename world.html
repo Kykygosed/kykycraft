@@ -732,6 +732,9 @@ auth.onAuthStateChanged(async user => {
   uid = user.uid;
   document.getElementById("loading").style.display = "flex";
 
+  const map = document.getElementById("gameCanvas"); // Placer en haut, avant utilisation
+  const tileSize = 64; // Déclaré une seule fois ici
+
   // Chargement de la world actuelle
   const playingSnap = await db.ref(`users/${uid}/playing`).once("value");
   currentWorld = playingSnap.val();
@@ -778,26 +781,25 @@ auth.onAuthStateChanged(async user => {
   uniqueMode = uniqueSnap.exists() && uniqueSnap.val() === true;
 
   await loadOrGenerateTrees();
+
   // 🔁 Charger les paths déjà placés
-const pathRef = db.ref(`users/${uid}/worlds/${currentWorld}/worldinfo/paths`);
-const snapshot = await pathRef.once("value");
-const paths = snapshot.val();
-const tileSize = 64;
+  const pathRef = db.ref(`users/${uid}/worlds/${currentWorld}/worldinfo/paths`); // "worldinfo", pas "worldinfos"
+  const snapshot = await pathRef.once("value");
+  const paths = snapshot.val();
 
-if (paths) {
-  for (const key in paths) {
-    const { x, y } = paths[key];
-
-    const pathImg = document.createElement("img");
-    pathImg.src = "path.png";
-    pathImg.style.position = "absolute";
-    pathImg.style.left = `${x}px`;
-    pathImg.style.top = `${y}px`;
-    pathImg.style.width = `${tileSize}px`;
-    pathImg.style.height = `${tileSize}px`;
-    map.appendChild(pathImg);
+  if (paths) {
+    for (const key in paths) {
+      const { x, y } = paths[key];
+      const pathImg = document.createElement("img");
+      pathImg.src = "path.png";
+      pathImg.style.position = "absolute";
+      pathImg.style.left = `${x}px`;
+      pathImg.style.top = `${y}px`;
+      pathImg.style.width = `${tileSize}px`;
+      pathImg.style.height = `${tileSize}px`;
+      map.appendChild(pathImg);
+    }
   }
-}
 
   await db.ref(`presence/${uid}`).set(true);
   updateHeartsUI();
@@ -805,7 +807,7 @@ if (paths) {
   // --- HOTBAR ---
   const hotbarRef = db.ref(`users/${uid}/worlds/${currentWorld}/playerinfos/hotbar`);
   const hotbarSnap = await hotbarRef.once("value");
-  let selectedSlot = 1;
+  let selectedSlot = 1; // Garder ici mais accessible aux listeners plus bas
 
   if (!hotbarSnap.exists()) {
     await hotbarRef.set({
@@ -864,36 +866,35 @@ if (paths) {
       drawHotbar(snap.val());
     });
   });
-const map = document.getElementById("gameCanvas"); // L'élément de la carte (ajuste l'ID si différent)
-const tileSize = 64; // Taille d'une case (à adapter selon ta grille visuelle)
 
-map.addEventListener("click", async (e) => {
-  const hotbarSnap = await hotbarRef.once("value");
-  const hotbar = hotbarSnap.val();
-  const selectedItem = hotbar[selectedSlot.toString()];
+  map.addEventListener("click", async (e) => {
+    const hotbarSnap = await hotbarRef.once("value");
+    const hotbar = hotbarSnap.val();
+    const selectedItem = hotbar[selectedSlot.toString()];
 
-  if (selectedItem !== "pelle") return;
+    if (selectedItem !== "pelle") return;
 
-  // Coordonnées relatives à la carte
-  const rect = map.getBoundingClientRect();
-  const x = Math.floor((e.clientX - rect.left) / tileSize) * tileSize;
-  const y = Math.floor((e.clientY - rect.top) / tileSize) * tileSize;
+    // Coordonnées relatives à la carte
+    const rect = map.getBoundingClientRect();
+    const x = Math.floor((e.clientX - rect.left) / tileSize) * tileSize;
+    const y = Math.floor((e.clientY - rect.top) / tileSize) * tileSize;
 
-  // Création visuelle
-  const pathImg = document.createElement("img");
-  pathImg.src = "path.png";
-  pathImg.style.position = "absolute";
-  pathImg.style.left = `${x}px`;
-  pathImg.style.top = `${y}px`;
-  pathImg.style.width = `${tileSize}px`;
-  pathImg.style.height = `${tileSize}px`;
-  map.appendChild(pathImg);
+    // Création visuelle
+    const pathImg = document.createElement("img");
+    pathImg.src = "path.png";
+    pathImg.style.position = "absolute";
+    pathImg.style.left = `${x}px`;
+    pathImg.style.top = `${y}px`;
+    pathImg.style.width = `${tileSize}px`;
+    pathImg.style.height = `${tileSize}px`;
+    map.appendChild(pathImg);
 
-  // Enregistrement Firebase
-  const pathRef = db.ref(`users/${uid}/worlds/${currentWorld}/worldinfos/paths`);
-  const key = `${x}_${y}`;
-  await pathRef.child(key).set({ x, y });
-});
+    // Enregistrement Firebase
+    // Correction clé "worldinfo" au lieu de "worldinfos"
+    const pathRef = db.ref(`users/${uid}/worlds/${currentWorld}/worldinfo/paths`);
+    const key = `${x}_${y}`;
+    await pathRef.child(key).set({ x, y });
+  });
 
   // --- MENU DE CRAFT (touche E pour ouvrir) ---
   const craftMenu = document.getElementById("craftMenu");
@@ -956,38 +957,29 @@ map.addEventListener("click", async (e) => {
     return null;
   }
 
-  async function updateHotbarAndRedraw(newHotbar) {
+  async function craftShovel() {
+    const hotbarSnap = await hotbarRef.once("value");
+    const hotbar = hotbarSnap.val();
+
+    if (countWood(hotbar) < 5) {
+      alert("Pas assez de bois pour fabriquer une pelle !");
+      return;
+    }
+
+    // Retirer 5 bois
+    let newHotbar = removeWood(hotbar, 5);
+
+    // Trouver une case vide ou remplacer la première (ici on remplace la case 1 si aucune vide)
+    const emptySlot = findEmptySlot(newHotbar) || "1";
+    newHotbar[emptySlot] = "pelle";
+
     await hotbarRef.set(newHotbar);
-    drawHotbar(newHotbar);
+    craftMenu.style.display = "none";
   }
 
-  craftShovelBtn.onclick = async () => {
-    const hotbarSnap = await hotbarRef.once("value");
-    if (!hotbarSnap.exists()) return;
-    let hotbar = hotbarSnap.val();
+  craftShovelBtn.onclick = craftShovel;
 
-    const totalWood = countWood(hotbar);
-    if (totalWood < 5) {
-      console.log("Pas assez de bois");
-      return;
-    }
-
-    const emptySlot = findEmptySlot(hotbar);
-    if (!emptySlot) {
-      console.log("Pas de slot vide");
-      return;
-    }
-
-    hotbar = removeWood(hotbar, 5);
-    hotbar[emptySlot] = "pelle";
-
-    await updateHotbarAndRedraw(hotbar);
-    console.log("Pelle fabriquée !");
-  };
-
-  // ✅ FIN INIT
   document.getElementById("loading").style.display = "none";
-  requestAnimationFrame(gameLoop);
 });
 
 
