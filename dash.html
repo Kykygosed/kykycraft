@@ -1,111 +1,392 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Admin Panel</title>
   <style>
-    body { font-family: sans-serif; background: #0f172a; color: white; padding: 2rem; }
-    .answer-card { border: 1px solid #ccc; margin: 10px 0; padding: 10px; background: #1e293b; border-radius: 8px; }
-    .pending { color: orange; }
-    .accepted { color: lime; }
-    .denied { color: red; }
+    body {
+      font-family: Arial, sans-serif;
+      background: #1e1e1e;
+      color: white;
+      padding: 20px;
+    }
+
+    h1, h2, h3 {
+      text-align: center;
+    }
+
+    label, input, textarea, button {
+      display: block;
+      width: 100%;
+      margin: 10px 0;
+    }
+
+    input, textarea {
+      padding: 8px;
+      background: #2e2e2e;
+      border: 1px solid #444;
+      color: white;
+      border-radius: 5px;
+    }
+
+    .question {
+      margin-bottom: 10px;
+    }
+
+    .btn {
+      background: #444;
+      color: white;
+      border: none;
+      padding: 10px;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+
+    .btn:hover {
+      background: #666;
+    }
+
+    .row {
+      display: flex;
+      gap: 10px;
+      margin-top: 20px;
+    }
+
+    .row button {
+      flex: 1;
+    }
+
+    /* Styles réponses */
+    .response-container {
+      margin-top: 40px;
+      border-top: 1px solid #555;
+      padding-top: 20px;
+    }
+
+    .response-item {
+      border: 1px solid #444;
+      border-radius: 5px;
+      margin-bottom: 10px;
+      padding: 10px;
+      background: #2e2e2e;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .response-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .response-author {
+      font-weight: bold;
+    }
+
+    .response-answer {
+      background: #1a1a1a;
+      padding: 8px;
+      border-radius: 4px;
+      white-space: pre-wrap;
+    }
+
+    .response-actions {
+      margin-top: 6px;
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .response-actions button {
+      flex: 1;
+      min-width: 90px;
+    }
+
+    /* Couleurs selon état */
+    .accepted {
+      border-color: #3c763d;
+      background: #2d4d29;
+      color: #b6e6a9;
+    }
+
+    .denied {
+      border-color: #8b2c2c;
+      background: #4d2929;
+      color: #f4b1b1;
+    }
+
+    /* Barre recherche */
+    #searchInput {
+      margin: 30px 0 20px 0;
+      padding: 10px;
+      font-size: 16px;
+      border-radius: 5px;
+      border: 1px solid #444;
+      background: #2e2e2e;
+      color: white;
+    }
+
   </style>
 </head>
 <body>
-  <h1>🎛️ Admin Panel</h1>
-  <h2 id="event-title">Chargement...</h2>
-  <p id="event-description"></p>
-  <p id="event-status"></p>
-  <hr>
-  <h3>📋 Réponses utilisateurs</h3>
-  <div id="answers-container"></div>
+  <h1>Panneau Admin</h1>
 
-  <!-- Firebase App -->
-  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js"></script>
+  <label for="title">Titre de l'évènement</label>
+  <input type="text" id="title" />
 
+  <label for="desc">Description de l'évènement</label>
+  <textarea id="desc"></textarea>
+
+  <label for="max">Nombre max d'inscriptions</label>
+  <input type="number" id="max" />
+
+  <h2>Questions</h2>
+  <div id="questions"></div>
+  <button class="btn" onclick="addQuestion()">Nouvelle question</button>
+
+  <div class="row">
+    <button class="btn" onclick="saveData()">Enregistrer</button>
+    <button class="btn" onclick="showEvent()">Afficher</button>
+  </div>
+
+  <div class="row">
+    <button class="btn" onclick="setState('open')">Démarrer les inscriptions</button>
+    <button class="btn" onclick="setState('nowclosed')">Fermer les inscriptions</button>
+    <button class="btn" onclick="setState('closed')">Finir</button>
+  </div>
+
+  <!-- Recherche -->
+  <input type="text" id="searchInput" placeholder="Rechercher un pseudo..." oninput="filterResponses()" />
+
+  <div class="response-container">
+    <h2>En attente</h2>
+    <div id="pendingResponses">Chargement...</div>
+  </div>
+
+  <div class="response-container">
+    <h2>Others</h2>
+    <div id="otherResponses">Chargement...</div>
+  </div>
+
+  <!-- Firebase scripts -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
   <script>
     // Config Firebase
-const firebaseConfig = {
-  apiKey: "AIzaSyBPq6Wfxzq02MfK69BFxHm9_FUjDGTmAcw",
-  authDomain: "kykychat-24c7f.firebaseapp.com",
-  databaseURL: "https://kykychat-24c7f-default-rtdb.firebaseio.com",
-  projectId: "kykychat-24c7f",
-  storageBucket: "kykychat-24c7f.firebasestorage.app",
-  messagingSenderId: "342562811927",
-  appId: "1:342562811927:web:0fed1e1f511c4fddcfec52"
-};
-
+    const firebaseConfig = {
+      apiKey: "AIzaSyDQGmbiwh5LTVq0Wp1q9NrSQzs86vER2XM",
+      authDomain: "kychat-45596.firebaseapp.com",
+      databaseURL: "https://kychat-45596-default-rtdb.firebaseio.com",
+      projectId: "kychat-45596",
+      storageBucket: "kychat-45596.firebasestorage.app",
+      messagingSenderId: "104462848972",
+      appId: "1:104462848972:web:7ac49e63008e9a11150369"
+    };
     firebase.initializeApp(firebaseConfig);
-    const auth = firebase.auth();
     const db = firebase.database();
 
-    // Autoriser uniquement les admins
-    const ADMIN_EMAILS = ["kykygosed@gmail.com"]; // à adapter
+    // Ajouter une nouvelle question
+    function addQuestion() {
+      const container = document.getElementById("questions");
+      const input = document.createElement("input");
+      input.type = "text";
+      input.placeholder = "Nouvelle question";
+      input.className = "question";
+      container.appendChild(input);
+    }
 
-    auth.onAuthStateChanged(user => {
-      if (!user || !ADMIN_EMAILS.includes(user.email)) {
-        window.location.href = "index.html";
+    // Enregistrer l’évènement et les questions
+    function saveData() {
+      const title = document.getElementById("title").value.trim();
+      const desc = document.getElementById("desc").value.trim();
+      const max = parseInt(document.getElementById("max").value);
+      const questionInputs = document.querySelectorAll(".question");
+      const questions = [];
+
+      questionInputs.forEach(q => {
+        const val = q.value.trim();
+        if (val) questions.push(val);
+      });
+
+      db.ref("/event").set({ title, description: desc, max })
+        .then(() => {
+          console.log("Évènement enregistré");
+        })
+        .catch(err => console.error("Erreur event:", err));
+
+      db.ref("/questions").set(questions)
+        .then(() => {
+          console.log("Questions enregistrées");
+          alert("Tout est bien enregistré !");
+        })
+        .catch(err => console.error("Erreur questions:", err));
+    }
+
+    // Afficher l’évènement
+    function showEvent() {
+      db.ref("/show").set(true)
+        .then(() => alert("Évènement affiché."))
+        .catch(err => console.error("Erreur show:", err));
+    }
+
+    // Changer l’état
+    function setState(state) {
+      db.ref("/state").set(state)
+        .then(() => alert("État changé: " + state))
+        .catch(err => console.error("Erreur state:", err));
+    }
+
+    // -------------------
+    // Gestion des réponses
+    // -------------------
+
+    // Les réponses sont supposées dans Firebase sous "/responses" :
+    // Structure exemple:
+    // /responses/
+    //   responseId1: { author: "pseudo1", answer: "texte...", userstate: "pending" }
+    //   responseId2: { author: "pseudo2", answer: "texte...", userstate: "accepted" }
+    // etc.
+
+    let allResponses = {}; // va contenir toutes les réponses chargées
+
+    const pendingContainer = document.getElementById("pendingResponses");
+    const otherContainer = document.getElementById("otherResponses");
+    const searchInput = document.getElementById("searchInput");
+
+    function fetchResponses() {
+      db.ref("/responses").on("value", snapshot => {
+        allResponses = snapshot.val() || {};
+        renderResponses();
+      });
+    }
+
+    function renderResponses() {
+      const filterText = searchInput.value.trim().toLowerCase();
+
+      // Filtrer selon la recherche
+      const filteredResponses = Object.entries(allResponses).filter(([id, resp]) => {
+        if (!resp.author) return false;
+        return resp.author.toLowerCase().includes(filterText);
+      });
+
+      // Séparer en deux groupes
+      const pending = filteredResponses.filter(([_, r]) => r.userstate === "pending");
+      const others = filteredResponses.filter(([_, r]) => r.userstate !== "pending");
+
+      // Rendu "En attente"
+      if (pending.length === 0) {
+        pendingContainer.innerHTML = "<i>Aucune réponse en attente.</i>";
       } else {
-        chargerEvenement();
-        chargerReponses();
-      }
-    });
-
-    function chargerEvenement() {
-      db.ref("event").once("value").then(snapshot => {
-        const data = snapshot.val() || {};
-        document.getElementById("event-title").textContent = data.title || "Aucun évènement.";
-        document.getElementById("event-description").textContent = data.description || "Vous trouverez les informations d'events sur discord.";
-      });
-
-      db.ref("state").once("value").then(snapshot => {
-        const state = snapshot.val();
-        let statut = "";
-        switch (state) {
-          case "open":
-            statut = "✅ Évènement en cours – inscriptions ouvertes.";
-            break;
-          case "nowclosed":
-            statut = "🕔 Inscriptions terminées.";
-            break;
-          case "closed":
-          default:
-            statut = "❌ Aucun évènement en cours.";
-        }
-        document.getElementById("event-status").textContent = statut;
-      });
-    }
-
-    function chargerReponses() {
-      db.ref("answers").on("value", snapshot => {
-        const container = document.getElementById("answers-container");
-        container.innerHTML = "";
-        const data = snapshot.val();
-        if (!data) {
-          container.innerHTML = "<p>Aucune réponse reçue.</p>";
-          return;
-        }
-
-        Object.entries(data).forEach(([uuid, infos]) => {
-          const card = document.createElement("div");
-          card.className = "answer-card";
-          const statut = infos.userstate || "pending";
-          card.innerHTML = `
-            <strong>ID:</strong> ${uuid}<br>
-            <strong>État:</strong> <span class="${statut}">${statut}</span><br>
-            <ul>
-              ${Object.entries(infos)
-                .filter(([k]) => k !== "userstate")
-                .map(([k, v]) => `<li><strong>${k}:</strong> ${v}</li>`)
-                .join("")}
-            </ul>
-          `;
-          container.appendChild(card);
+        pendingContainer.innerHTML = "";
+        pending.forEach(([id, resp]) => {
+          pendingContainer.appendChild(createResponseElement(id, resp, false));
         });
-      });
+      }
+
+      // Rendu "Others"
+      if (others.length === 0) {
+        otherContainer.innerHTML = "<i>Aucune autre réponse.</i>";
+      } else {
+        otherContainer.innerHTML = "";
+        others.forEach(([id, resp]) => {
+          otherContainer.appendChild(createResponseElement(id, resp, true));
+        });
+      }
     }
+
+    // Crée un élément DOM pour une réponse
+    // isOther = true si dans "others", false si dans "pending"
+    function createResponseElement(id, resp, isOther) {
+      const container = document.createElement("div");
+      container.className = "response-item";
+      if (resp.userstate === "accepted") container.classList.add("accepted");
+      if (resp.userstate === "denied") container.classList.add("denied");
+
+      // Header (pseudo + état)
+      const header = document.createElement("div");
+      header.className = "response-header";
+
+      const author = document.createElement("div");
+      author.className = "response-author";
+      author.textContent = "Auteur : " + resp.author;
+
+      const stateLabel = document.createElement("div");
+      stateLabel.textContent = "État : " + resp.userstate;
+
+      header.appendChild(author);
+      header.appendChild(stateLabel);
+
+      // Réponse texte
+      const answer = document.createElement("div");
+      answer.className = "response-answer";
+      answer.textContent = resp.answer;
+
+      // Actions
+      const actions = document.createElement("div");
+      actions.className = "response-actions";
+
+      // Boutons selon contexte
+      if (!isOther) {
+        // En attente => accepter, refuser, supprimer
+        const btnAccept = createBtn("Accepter", () => updateUserstate(id, "accepted"));
+        const btnDeny = createBtn("Refuser", () => updateUserstate(id, "denied"));
+        const btnDelete = createBtn("Supprimer", () => deleteResponse(id));
+        actions.appendChild(btnAccept);
+        actions.appendChild(btnDeny);
+        actions.appendChild(btnDelete);
+      } else {
+        // Others => remettre en pending, accepter, refuser, supprimer
+        const btnPending = createBtn("Remettre en attente", () => updateUserstate(id, "pending"));
+        const btnAccept = createBtn("Accepter", () => updateUserstate(id, "accepted"));
+        const btnDeny = createBtn("Refuser", () => updateUserstate(id, "denied"));
+        const btnDelete = createBtn("Supprimer", () => deleteResponse(id));
+        actions.appendChild(btnPending);
+        actions.appendChild(btnAccept);
+        actions.appendChild(btnDeny);
+        actions.appendChild(btnDelete);
+      }
+
+      container.appendChild(header);
+      container.appendChild(answer);
+      container.appendChild(actions);
+
+      return container;
+    }
+
+    function createBtn(text, onClick) {
+      const btn = document.createElement("button");
+      btn.textContent = text;
+      btn.className = "btn";
+      btn.onclick = onClick;
+      return btn;
+    }
+
+    // Met à jour l'état d'une réponse
+    function updateUserstate(id, newState) {
+      db.ref("/responses/" + id + "/userstate").set(newState)
+        .then(() => console.log(`Réponse ${id} mise à jour: ${newState}`))
+        .catch(err => console.error("Erreur update userstate:", err));
+    }
+
+    // Supprime une réponse
+    function deleteResponse(id) {
+      if (confirm("Supprimer cette réponse définitivement ?")) {
+        db.ref("/responses/" + id).remove()
+          .then(() => console.log(`Réponse ${id} supprimée`))
+          .catch(err => console.error("Erreur suppression réponse:", err));
+      }
+    }
+
+    // Filtrer les réponses quand on tape dans la barre recherche
+    function filterResponses() {
+      renderResponses();
+    }
+
+    // Lancer la récupération au chargement
+    fetchResponses();
+
   </script>
 </body>
 </html>
