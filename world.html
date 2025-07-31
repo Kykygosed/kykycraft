@@ -714,7 +714,33 @@ window.addEventListener("resize", () => {
 });
 
   
-function startAuthWatcher() {
+function checkZoomLevelStartup() {
+  const zoomLevel = Math.round(window.devicePixelRatio * 100);
+  const zoomErrorDiv = document.getElementById("zoomError");
+
+  if (zoomLevel !== 100) {
+    zoomErrorDiv.style.display = "block";
+    return false;
+  } else {
+    zoomErrorDiv.style.display = "none";
+    return true;
+  }
+}
+
+// 🔁 Vérifie en boucle jusqu’à bon zoom
+function waitForCorrectZoomAndStartAuth() {
+  if (checkZoomLevelStartup()) {
+    // ✅ Zoom bon, démarrer le jeu
+    startGame();
+  } else {
+    setTimeout(waitForCorrectZoomAndStartAuth, 1000);
+  }
+}
+
+// ⚡ Lancer dès que possible
+waitForCorrectZoomAndStartAuth();
+
+function startGame() {
   auth.onAuthStateChanged(async user => {
     if (!user) {
       location.href = "index.html";
@@ -764,7 +790,6 @@ function startAuthWatcher() {
     uniqueMode = uniqueSnap.exists() && uniqueSnap.val() === true;
 
     await loadOrGenerateTrees();
-
     await db.ref(`presence/${uid}`).set(true);
 
     updateHeartsUI();
@@ -795,12 +820,10 @@ function startAuthWatcher() {
         if (i === selectedSlot) slot.classList.add("selected");
 
         const item = data?.[i] || "EMPTY";
-
         if (item !== "EMPTY") {
           const img = document.createElement("img");
           if (item.startsWith("bois")) img.src = "wood.png";
-          // ajoute d'autres items ici...
-
+          // d'autres types d'items ici...
           slot.appendChild(img);
 
           const match = item.match(/\((\d+)\)/);
@@ -825,7 +848,6 @@ function startAuthWatcher() {
       drawHotbar(snap.val());
     });
 
-    // 🎯 Sélection par molette
     window.addEventListener("wheel", (e) => {
       const delta = Math.sign(e.deltaY);
       selectedSlot -= delta;
@@ -838,18 +860,7 @@ function startAuthWatcher() {
     });
   });
 }
-function checkZoomLevelStartup() {
-  const zoomLevel = Math.round(window.devicePixelRatio * 100);
-  const zoomErrorDiv = document.getElementById("zoomError");
 
-  if (zoomLevel !== 100) {
-    zoomErrorDiv.style.display = "block";
-    return false;
-  } else {
-    zoomErrorDiv.style.display = "none";
-    return true;
-  }
-}
 
 function waitForCorrectZoomAndStartAuth() {
   if (checkZoomLevelStartup()) {
