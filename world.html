@@ -435,7 +435,7 @@ function handleDeath() {
 
   // Faire disparaître le perso (exemple si perso est un élément DOM)
   const playerElem = document.getElementById("player"); // adapte selon ton code
-  if(playerElem) playerElem.style.display = "none";
+  if (playerElem) playerElem.style.display = "none";
 
   document.getElementById("deathScreen").style.display = "flex";
   document.getElementById("respawnBtn").style.display = uniqueMode ? "none" : "inline-block";
@@ -457,7 +457,7 @@ function handleDeath() {
       isDead = false;
 
       // Rendre visible le perso
-      if(playerElem) playerElem.style.display = "block";
+      if (playerElem) playerElem.style.display = "block";
 
       document.getElementById("deathScreen").style.display = "none";
 
@@ -475,6 +475,23 @@ function handleDeath() {
       respawnPlayer();
     }
   };
+
+  document.getElementById("exploreBtn").onclick = () => {
+    if (isDead && uniqueMode) {
+      isDead = false;
+
+      if (playerElem) playerElem.style.display = "block";
+
+      document.getElementById("deathScreen").style.display = "none";
+      startUniqueExplore();
+    }
+  };
+
+  document.getElementById("quitBtnTop").onclick = () => {
+    location.href = "index.html";
+  };
+}
+
 
   document.getElementById("exploreBtn").onclick = () => {
     if (isDead && uniqueMode) {
