@@ -732,8 +732,12 @@ auth.onAuthStateChanged(async user => {
   uid = user.uid;
   document.getElementById("loading").style.display = "flex";
 
-  const map = document.getElementById("gameCanvas"); // Placer en haut, avant utilisation
-  const tileSize = 64; // Déclaré une seule fois ici
+  const map = document.getElementById("gameCanvas");
+  const tileSize = 64;
+
+  // Variables globales player et autres
+  player.x = 100;
+  player.y = 100;
 
   // Chargement de la world actuelle
   const playingSnap = await db.ref(`users/${uid}/playing`).once("value");
@@ -749,9 +753,6 @@ auth.onAuthStateChanged(async user => {
     const val = coordsSnap.val();
     player.x = parseFloat(val.x) || 100;
     player.y = parseFloat(val.y) || 100;
-  } else {
-    player.x = 100;
-    player.y = 100;
   }
 
   // Heure du monde
@@ -783,10 +784,14 @@ auth.onAuthStateChanged(async user => {
   await loadOrGenerateTrees();
 
   // 🔁 Charger les paths déjà placés
-  const pathRef = db.ref(`users/${uid}/worlds/${currentWorld}/worldinfo/paths`); // "worldinfo", pas "worldinfos"
+  const pathRef = db.ref(`users/${uid}/worlds/${currentWorld}/worldinfo/paths`);
   const snapshot = await pathRef.once("value");
   const paths = snapshot.val();
 
+  // Vider la carte avant de dessiner
+  map.innerHTML = "";
+
+  // Affichage des chemins existants
   if (paths) {
     for (const key in paths) {
       const { x, y } = paths[key];
@@ -801,13 +806,28 @@ auth.onAuthStateChanged(async user => {
     }
   }
 
+  // Affichage du joueur
+  let playerElem = document.getElementById("player");
+  if (!playerElem) {
+    playerElem = document.createElement("img");
+    playerElem.id = "player";
+    playerElem.src = "player.png"; // Remplace par le chemin correct de l'image du joueur
+    playerElem.style.position = "absolute";
+    playerElem.style.width = `${tileSize}px`;
+    playerElem.style.height = `${tileSize}px`;
+    map.appendChild(playerElem);
+  }
+  // Positionnement du joueur
+  playerElem.style.left = `${player.x}px`;
+  playerElem.style.top = `${player.y}px`;
+
   await db.ref(`presence/${uid}`).set(true);
   updateHeartsUI();
 
   // --- HOTBAR ---
   const hotbarRef = db.ref(`users/${uid}/worlds/${currentWorld}/playerinfos/hotbar`);
   const hotbarSnap = await hotbarRef.once("value");
-  let selectedSlot = 1; // Garder ici mais accessible aux listeners plus bas
+  let selectedSlot = 1;
 
   if (!hotbarSnap.exists()) {
     await hotbarRef.set({
@@ -874,12 +894,15 @@ auth.onAuthStateChanged(async user => {
 
     if (selectedItem !== "pelle") return;
 
-    // Coordonnées relatives à la carte
     const rect = map.getBoundingClientRect();
     const x = Math.floor((e.clientX - rect.left) / tileSize) * tileSize;
     const y = Math.floor((e.clientY - rect.top) / tileSize) * tileSize;
 
-    // Création visuelle
+    // Vérifier si un path existe déjà à cet endroit
+    const pathKey = `${x}_${y}`;
+    const existingPathSnap = await pathRef.child(pathKey).once("value");
+    if (existingPathSnap.exists()) return; // éviter double ajout
+
     const pathImg = document.createElement("img");
     pathImg.src = "path.png";
     pathImg.style.position = "absolute";
@@ -889,14 +912,10 @@ auth.onAuthStateChanged(async user => {
     pathImg.style.height = `${tileSize}px`;
     map.appendChild(pathImg);
 
-    // Enregistrement Firebase
-    // Correction clé "worldinfo" au lieu de "worldinfos"
-    const pathRef = db.ref(`users/${uid}/worlds/${currentWorld}/worldinfo/paths`);
-    const key = `${x}_${y}`;
-    await pathRef.child(key).set({ x, y });
+    await pathRef.child(pathKey).set({ x, y });
   });
 
-  // --- MENU DE CRAFT (touche E pour ouvrir) ---
+  // --- MENU DE CRAFT ---
   const craftMenu = document.getElementById("craftMenu");
   const craftShovelBtn = document.getElementById("craftShovelBtn");
   const closeCraftMenuBtn = document.getElementById("closeCraftMenuBtn");
@@ -905,7 +924,6 @@ auth.onAuthStateChanged(async user => {
     if (e.key.toLowerCase() === "e") {
       const active = document.activeElement;
       if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA')) return;
-
       craftMenu.style.display = (craftMenu.style.display === "block") ? "none" : "block";
     }
   });
@@ -929,7 +947,6 @@ auth.onAuthStateChanged(async user => {
   function removeWood(hotbar, n) {
     const newHotbar = { ...hotbar };
     let remaining = n;
-
     for (let key in newHotbar) {
       let item = newHotbar[key];
       if (item?.startsWith("bois")) {
@@ -966,10 +983,7 @@ auth.onAuthStateChanged(async user => {
       return;
     }
 
-    // Retirer 5 bois
     let newHotbar = removeWood(hotbar, 5);
-
-    // Trouver une case vide ou remplacer la première (ici on remplace la case 1 si aucune vide)
     const emptySlot = findEmptySlot(newHotbar) || "1";
     newHotbar[emptySlot] = "pelle";
 
