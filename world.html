@@ -796,7 +796,6 @@ auth.onAuthStateChanged(async user => {
     await hotbarRef.set(defaultHotbar);
   }
 
-  // Fonction drawHotbar mise à jour avec la pelle
   function drawHotbar(data) {
     const container = document.getElementById("hotbar");
     container.innerHTML = "";
@@ -811,11 +810,9 @@ auth.onAuthStateChanged(async user => {
         const img = document.createElement("img");
         if (item.startsWith("bois")) img.src = "wood.png";
         else if (item === "pelle") img.src = "shovel.png";
-        // ajoute d'autres items ici...
 
         slot.appendChild(img);
 
-        // Affiche le nombre si stack
         const match = item.match(/\((\d+)\)/);
         if (match) {
           const countEl = document.createElement("div");
@@ -838,7 +835,6 @@ auth.onAuthStateChanged(async user => {
     drawHotbar(snap.val());
   });
 
-  // 🎯 Sélection par molette
   window.addEventListener("wheel", (e) => {
     const delta = Math.sign(e.deltaY);
     selectedSlot -= delta;
@@ -851,7 +847,6 @@ auth.onAuthStateChanged(async user => {
   });
 
   // --- MENU DE CRAFT PELLE ---
-
   const craftMenu = document.getElementById('craftMenu');
   const craftShovelBtn = document.getElementById('craftShovelBtn');
   const closeCraftMenuBtn = document.getElementById('closeCraftMenuBtn');
@@ -860,7 +855,6 @@ auth.onAuthStateChanged(async user => {
     if (e.key.toLowerCase() === 'e') {
       const active = document.activeElement;
       if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA')) return;
-
       craftMenu.style.display = craftMenu.style.display === 'none' ? 'block' : 'none';
     }
   });
@@ -883,7 +877,7 @@ auth.onAuthStateChanged(async user => {
   }
 
   function removeWood(hotbar, n) {
-    const newHotbar = {...hotbar};
+    const newHotbar = { ...hotbar };
     let remaining = n;
 
     for (let slotKey in newHotbar) {
@@ -941,10 +935,17 @@ auth.onAuthStateChanged(async user => {
     await updateHotbarAndRedraw(hotbar);
     console.log("Pelle fabriquée !");
   };
+
+  // ✅ FIN INIT → enleve le chargement
+  document.getElementById("loading").style.display = "none";
+
+  // Lancement de la boucle principale
+  requestAnimationFrame(gameLoop);
 });
 
+
  
-  document.getElementById("loading").style.display = "none";
+
 
   // Variable globale pour stocker l'arbre proche
   nearbyTree = null;
