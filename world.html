@@ -901,7 +901,7 @@ waitForCorrectZoomAndStartAuth();
     }
   };
 
-  async function addItemToHotbar(itemName) {
+async function addItemToHotbar(itemName) {
   const hotbarRef = db.ref(`users/${uid}/worlds/${currentWorld}/playerinfos/hotbar`);
   const hotbarSnap = await hotbarRef.once("value");
   const hotbar = hotbarSnap.val();
@@ -930,8 +930,10 @@ waitForCorrectZoomAndStartAuth();
   console.warn("Hotbar pleine !");
 }
 
-  // Lancement de la boucle principale
-  requestAnimationFrame(gameLoop);
+
+
+// Lancement de la boucle principale
+requestAnimationFrame(gameLoop);
 });
 
 
