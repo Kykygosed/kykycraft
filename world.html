@@ -864,13 +864,23 @@ function startGame() {
 
 function waitForCorrectZoomAndStartAuth() {
   if (checkZoomLevelStartup()) {
-    startAuthWatcher();
+    // Zoom OK, on peut démarrer Firebase Auth
+    auth.onAuthStateChanged(async user => {
+      if (!user) {
+        location.href = "index.html";
+        return;
+      }
+
+      // tout ton code ici...
+
+    });
   } else {
     setTimeout(waitForCorrectZoomAndStartAuth, 1000);
   }
 }
 
 waitForCorrectZoomAndStartAuth();
+
 
  
   document.getElementById("loading").style.display = "none";
