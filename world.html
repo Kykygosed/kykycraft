@@ -666,6 +666,7 @@ function gameLoop() {
   breakBtn.style.display = nearbyTree ? "block" : "none";
 
   drawMobs();
+  drawPaths();
 
   coordsEl.textContent = `X: ${player.x.toFixed(2)} Y: ${player.y.toFixed(2)}`;
   timeDisplay.textContent = `Jour ${currentDay} - ${getGameTimeStr()}`;
@@ -1133,14 +1134,11 @@ function drawMobs() {
   }
 }
 function drawPaths() {
-  if (!paths || !pathImg.complete) return;
-
-  paths.forEach(path => {
+  for (const path of paths) {
     const screenX = canvas.width / 2 + (path.x - player.x);
     const screenY = canvas.height / 2 + (path.y - player.y);
-
     ctx.drawImage(pathImg, screenX, screenY, tileSize, tileSize);
-  });
+  }
 }
 
 
