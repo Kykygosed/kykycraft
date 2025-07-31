@@ -272,92 +272,103 @@
       });
   }
 
-  function loadEvent() {
-    let currentState = null;
-    let currentUserState = null;
+  let currentState = null;
+let currentUserState = null;
+let currentMax = 0;
+let currentActual = 0;
 
-    function updateStatus() {
-      if (!currentState) return;
+function loadEvent() {
+  // Charger max et actual
+  db.ref("event").on("value", snap => {
+    const event = snap.val();
+    currentMax = event?.max || 100;
+    currentActual = event?.actual || 0;
+    updateStatus(); // on redessine le bouton s'il y a des changements
+  });
 
-      if (currentState === "closed") {
-        titleEl.innerText = "Aucun évènement n'est en cours.";
-        descEl.innerText = "Tenez vous au courant sur discord.";
-      } else {
-        db.ref("event").once("value").then(snap => {
-          const ev = snap.val();
-          titleEl.innerText = ev?.title || "Évènement";
-          descEl.innerText = ev?.description || "";
-        });
-      }
+  db.ref("state").on("value", snap => {
+    currentState = snap.val();
+    updateStatus();
+  });
 
-      statusEl.className = "status-bar";
-      statusEl.innerHTML = "";
-
-      let img = document.createElement("img");
-      img.style.maxWidth = "100%";
-      img.style.marginBottom = "10px";
-      img.style.borderRadius = "10px";
-
-      let statusText = document.createElement("div");
-      statusText.style.textAlign = "center";
-
-      if (currentState === "closed") {
-        img.src = "https://imgur.com/OMMmKTZ.jpeg";
-        statusText.innerText = "Aucun évènement n'est en cours. Revenez plus tard!";
-        statusEl.appendChild(img);
-        statusEl.appendChild(statusText);
-      } else if (currentState === "nowclosed") {
-        img.src = "https://imgur.com/QKya4tB.jpeg";
-        statusText.innerText = "Les inscriptions sont terminées. Merci a ceux qui se sont inscris!";
-        statusEl.appendChild(img);
-        statusEl.appendChild(statusText);
-      } else if (currentState === "open") {
-        if (currentUserState === "pending") {
-          img.src = "https://imgur.com/7TcPaOZ.jpeg";
-          statusText.innerText = "En attente: un admin vous prendra en charge.";
-          statusEl.appendChild(img);
-          statusEl.appendChild(statusText);
-        } else if (currentUserState === "accepted") {
-          statusEl.classList.add("green");
-          statusText.innerText = "Vous êtes accepté ! GG a toi!";
-          statusEl.appendChild(statusText);
-        } else if (currentUserState === "denied") {
-          statusEl.classList.add("red");
-          statusText.innerText = "Vous êtes refusé. Une prochaine fois!";
-          statusEl.appendChild(statusText);
-        } else {
-          const btn = document.createElement("button");
-          btn.innerText = "S'inscrire !";
-          btn.style.width = "100%";
-          btn.style.padding = "10px";
-          btn.style.fontSize = "16px";
-          btn.style.fontWeight = "bold";
-          btn.style.color = "white";
-          btn.style.backgroundColor = "#007BFF";
-          btn.style.border = "none";
-          btn.style.borderRadius = "8px";
-          btn.style.cursor = "pointer";
-          btn.style.transition = "background-color 0.3s ease";
-          btn.onmouseover = () => btn.style.backgroundColor = "#0056b3";
-          btn.onmouseout = () => btn.style.backgroundColor = "#007BFF";
-          btn.onclick = openPopup;
-          statusEl.appendChild(btn);
-        }
-      }
-    }
-
-    db.ref("state").on("value", snap => {
-      currentState = snap.val();
+  if (currentUser) {
+    db.ref("answers/" + currentUser.uid + "/userstate").on("value", snap => {
+      currentUserState = snap.val();
       updateStatus();
     });
+  }
+}
 
-    if (currentUser) {
-      db.ref("answers/" + currentUser.uid + "/userstate").on("value", snap => {
-        currentUserState = snap.val();
-        updateStatus();
-      });
+function updateStatus() {
+  if (!currentState) return;
+
+  if (currentState === "closed") {
+    titleEl.innerText = "Aucun évènement n'est en cours.";
+    descEl.innerText = "Tenez vous au courant sur discord.";
+  } else {
+    db.ref("event").once("value").then(snap => {
+      const ev = snap.val();
+      titleEl.innerText = ev?.title || "Évènement";
+      descEl.innerText = ev?.description || "";
+    });
+  }
+
+  statusEl.className = "status-bar";
+  statusEl.innerHTML = "";
+
+  let img = document.createElement("img");
+  img.style.maxWidth = "100%";
+  img.style.marginBottom = "10px";
+  img.style.borderRadius = "10px";
+
+  let statusText = document.createElement("div");
+  statusText.style.textAlign = "center";
+
+  if (currentState === "closed") {
+    img.src = "https://imgur.com/OMMmKTZ.jpeg";
+    statusText.innerText = "Aucun évènement n'est en cours.";
+    statusEl.appendChild(img);
+    statusEl.appendChild(statusText);
+  } else if (currentState === "nowclosed") {
+    img.src = "https://imgur.com/QKya4tB.jpeg";
+    statusText.innerText = "Les inscriptions sont terminées.";
+    statusEl.appendChild(img);
+    statusEl.appendChild(statusText);
+  } else if (currentState === "open") {
+    if (currentUserState === "pending") {
+      img.src = "https://imgur.com/7TcPaOZ.jpeg";
+      statusText.innerText = "En attente: un admin vous prendra en charge.";
+      statusEl.appendChild(img);
+      statusEl.appendChild(statusText);
+    } else if (currentUserState === "accepted") {
+      statusEl.classList.add("green");
+      statusText.innerText = "Vous êtes accepté !";
+      statusEl.appendChild(statusText);
+    } else if (currentUserState === "denied") {
+      statusEl.classList.add("red");
+      statusText.innerText = "Vous êtes refusé.";
+      statusEl.appendChild(statusText);
+    } else {
+      const btn = document.createElement("button");
+      btn.innerText = `S'inscrire ! (${currentActual}/${currentMax})`;
+      btn.style.width = "100%";
+      btn.style.padding = "10px";
+      btn.style.fontSize = "16px";
+      btn.style.fontWeight = "bold";
+      btn.style.color = "white";
+      btn.style.backgroundColor = "#007BFF";
+      btn.style.border = "none";
+      btn.style.borderRadius = "8px";
+      btn.style.cursor = "pointer";
+      btn.style.transition = "background-color 0.3s ease";
+      btn.onmouseover = () => btn.style.backgroundColor = "#0056b3";
+      btn.onmouseout = () => btn.style.backgroundColor = "#007BFF";
+      btn.onclick = openPopup;
+      statusEl.appendChild(btn);
     }
   }
+}
+
 
   function openPopup() {
     overlay.style.display = "block";
@@ -380,25 +391,41 @@
   }
 
   function submitAnswers() {
-    const inputs = form.querySelectorAll("input");
-    const data = {};
-    let allFilled = true;
+  const inputs = form.querySelectorAll("input");
+  const data = {};
+  let allFilled = true;
 
-    inputs.forEach(input => {
-      if (!input.value.trim()) allFilled = false;
-      data[input.name] = input.value.trim();
+  inputs.forEach(input => {
+    if (!input.value.trim()) allFilled = false;
+    data[input.name] = input.value.trim();
+  });
+
+  if (!allFilled) return;
+
+  // Ajout dans la base
+  db.ref("answers/" + currentUser.uid).set({
+    ...data,
+    userstate: "pending"
+  }).then(() => {
+    // Incrémentation de event/actual
+    db.ref("event/actual").transaction(actual => {
+      if (actual === null) return 1;
+      return actual + 1;
+    }, (error, committed, snap) => {
+      if (committed) {
+        const newActual = snap.val();
+        // Si on atteint max, on ferme les inscriptions
+        if (newActual >= currentMax) {
+          db.ref("state").set("nowclosed");
+        }
+      }
     });
 
-    if (!allFilled) return;
+    overlay.style.display = "none";
+    popup.style.display = "none";
+  });
+}
 
-    db.ref("answers/" + currentUser.uid).set({
-      ...data,
-      userstate: "pending"
-    }).then(() => {
-      overlay.style.display = "none";
-      popup.style.display = "none";
-    });
-  }
 </script>
 
 </body>
