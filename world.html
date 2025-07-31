@@ -714,174 +714,129 @@ window.addEventListener("resize", () => {
 });
 
   
-function checkZoomLevelStartup() {
-  const zoomLevel = Math.round(window.devicePixelRatio * 100);
-  const zoomErrorDiv = document.getElementById("zoomError");
+auth.onAuthStateChanged(async user => {
+  if (!user) {
+    location.href = "index.html";
+    return;
+  }
 
-  if (zoomLevel !== 100) {
-    zoomErrorDiv.style.display = "block";
-    return false;
+  uid = user.uid;
+  document.getElementById("loading").style.display = "flex";
+
+  const playingSnap = await db.ref(`users/${uid}/playing`).once("value");
+  currentWorld = playingSnap.val();
+  if (!currentWorld || currentWorld === "Ecran d'accueil") {
+    location.href = "play.html";
+    return;
+  }
+
+  const coordsSnap = await db.ref(`users/${uid}/worlds/${currentWorld}/playerinfos/coords`).once("value");
+  if (coordsSnap.exists()) {
+    const val = coordsSnap.val();
+    player.x = parseFloat(val.x) || 100;
+    player.y = parseFloat(val.y) || 100;
   } else {
-    zoomErrorDiv.style.display = "none";
-    return true;
+    player.x = 100;
+    player.y = 100;
+  }
+
+  const dateSnap = await db.ref(`users/${uid}/worlds/${currentWorld}/date`).once("value");
+  if (dateSnap.exists()) {
+    const [h, m] = dateSnap.val().split(":").map(Number);
+    inGameMinutes = h * 60 + m;
+  } else {
+    inGameMinutes = 12 * 60;
+  }
+
+  const daySnap = await db.ref(`users/${uid}/worlds/${currentWorld}/day`).once("value");
+  if (daySnap.exists()) currentDay = daySnap.val();
+
+  const heartsSnap = await db.ref(`users/${uid}/worlds/${currentWorld}/playerinfos/hearts`).once("value");
+  if (heartsSnap.exists()) {
+    hearts = heartsSnap.val();
+  } else {
+    hearts = maxHearts;
+    await db.ref(`users/${uid}/worlds/${currentWorld}/playerinfos/hearts`).set(hearts);
+  }
+
+  const uniqueSnap = await db.ref(`users/${uid}/worlds/${currentWorld}/unique`).once("value");
+  uniqueMode = uniqueSnap.exists() && uniqueSnap.val() === true;
+
+  await loadOrGenerateTrees();
+
+  await db.ref(`presence/${uid}`).set(true);
+
+  updateHeartsUI();
+
+  // 🔥 HOTBAR SETUP
+  let selectedSlot = 1;
+
+  const hotbarRef = db.ref(`users/${uid}/worlds/${currentWorld}/playerinfos/hotbar`);
+  const hotbarSnap = await hotbarRef.once("value");
+
+  if (!hotbarSnap.exists()) {
+    const defaultHotbar = {
+      "1": "EMPTY",
+      "2": "EMPTY",
+      "3": "EMPTY",
+      "4": "EMPTY",
+      "5": "EMPTY"
+    };
+    await hotbarRef.set(defaultHotbar);
+  }
+
+  function drawHotbar(data) {
+    const container = document.getElementById("hotbar");
+    container.innerHTML = "";
+    for (let i = 1; i <= 5; i++) {
+      const slot = document.createElement("div");
+      slot.className = "hotbar-slot";
+      if (i === selectedSlot) slot.classList.add("selected");
+
+      const item = data?.[i] || "EMPTY";
+
+if (item !== "EMPTY") {
+  const img = document.createElement("img");
+  if (item.startsWith("bois")) img.src = "wood.png";
+  // ajoute d'autres items ici...
+
+  slot.appendChild(img);
+
+  // Affiche le nombre si stack
+  const match = item.match(/\((\d+)\)/);
+  if (match) {
+    const countEl = document.createElement("div");
+    countEl.textContent = match[1];
+    countEl.className = "item-count";
+    slot.appendChild(countEl);
   }
 }
 
-// 🔁 Vérifie en boucle jusqu’à bon zoom
-function waitForCorrectZoomAndStartAuth() {
-  if (checkZoomLevelStartup()) {
-    // ✅ Zoom bon, démarrer le jeu
-    startGame();
-  } else {
-    setTimeout(waitForCorrectZoomAndStartAuth, 1000);
-  }
-}
 
-// ⚡ Lancer dès que possible
-waitForCorrectZoomAndStartAuth();
-
-function startGame() {
-  auth.onAuthStateChanged(async user => {
-    if (!user) {
-      location.href = "index.html";
-      return;
-    }
-
-    uid = user.uid;
-    document.getElementById("loading").style.display = "flex";
-
-    const playingSnap = await db.ref(`users/${uid}/playing`).once("value");
-    currentWorld = playingSnap.val();
-    if (!currentWorld || currentWorld === "Ecran d'accueil") {
-      location.href = "play.html";
-      return;
-    }
-
-    const coordsSnap = await db.ref(`users/${uid}/worlds/${currentWorld}/playerinfos/coords`).once("value");
-    if (coordsSnap.exists()) {
-      const val = coordsSnap.val();
-      player.x = parseFloat(val.x) || 100;
-      player.y = parseFloat(val.y) || 100;
-    } else {
-      player.x = 100;
-      player.y = 100;
-    }
-
-    const dateSnap = await db.ref(`users/${uid}/worlds/${currentWorld}/date`).once("value");
-    if (dateSnap.exists()) {
-      const [h, m] = dateSnap.val().split(":").map(Number);
-      inGameMinutes = h * 60 + m;
-    } else {
-      inGameMinutes = 12 * 60;
-    }
-
-    const daySnap = await db.ref(`users/${uid}/worlds/${currentWorld}/day`).once("value");
-    if (daySnap.exists()) currentDay = daySnap.val();
-
-    const heartsSnap = await db.ref(`users/${uid}/worlds/${currentWorld}/playerinfos/hearts`).once("value");
-    if (heartsSnap.exists()) {
-      hearts = heartsSnap.val();
-    } else {
-      hearts = maxHearts;
-      await db.ref(`users/${uid}/worlds/${currentWorld}/playerinfos/hearts`).set(hearts);
-    }
-
-    const uniqueSnap = await db.ref(`users/${uid}/worlds/${currentWorld}/unique`).once("value");
-    uniqueMode = uniqueSnap.exists() && uniqueSnap.val() === true;
-
-    await loadOrGenerateTrees();
-    await db.ref(`presence/${uid}`).set(true);
-
-    updateHeartsUI();
-
-    // 🔥 HOTBAR SETUP
-    let selectedSlot = 1;
-
-    const hotbarRef = db.ref(`users/${uid}/worlds/${currentWorld}/playerinfos/hotbar`);
-    const hotbarSnap = await hotbarRef.once("value");
-
-    if (!hotbarSnap.exists()) {
-      const defaultHotbar = {
-        "1": "EMPTY",
-        "2": "EMPTY",
-        "3": "EMPTY",
-        "4": "EMPTY",
-        "5": "EMPTY"
+      slot.onclick = () => {
+        selectedSlot = i;
+        drawHotbar(data);
       };
-      await hotbarRef.set(defaultHotbar);
+
+      container.appendChild(slot);
     }
+  }
 
-    function drawHotbar(data) {
-      const container = document.getElementById("hotbar");
-      container.innerHTML = "";
-      for (let i = 1; i <= 5; i++) {
-        const slot = document.createElement("div");
-        slot.className = "hotbar-slot";
-        if (i === selectedSlot) slot.classList.add("selected");
+  hotbarRef.on("value", snap => {
+    drawHotbar(snap.val());
+  });
 
-        const item = data?.[i] || "EMPTY";
-        if (item !== "EMPTY") {
-          const img = document.createElement("img");
-          if (item.startsWith("bois")) img.src = "wood.png";
-          // d'autres types d'items ici...
-          slot.appendChild(img);
+  // 🎯 Sélection par molette
+  window.addEventListener("wheel", (e) => {
+    const delta = Math.sign(e.deltaY);
+    selectedSlot -= delta;
+    if (selectedSlot < 1) selectedSlot = 5;
+    if (selectedSlot > 5) selectedSlot = 1;
 
-          const match = item.match(/\((\d+)\)/);
-          if (match) {
-            const countEl = document.createElement("div");
-            countEl.textContent = match[1];
-            countEl.className = "item-count";
-            slot.appendChild(countEl);
-          }
-        }
-
-        slot.onclick = () => {
-          selectedSlot = i;
-          drawHotbar(data);
-        };
-
-        container.appendChild(slot);
-      }
-    }
-
-    hotbarRef.on("value", snap => {
+    hotbarRef.once("value").then(snap => {
       drawHotbar(snap.val());
     });
-
-    window.addEventListener("wheel", (e) => {
-      const delta = Math.sign(e.deltaY);
-      selectedSlot -= delta;
-      if (selectedSlot < 1) selectedSlot = 5;
-      if (selectedSlot > 5) selectedSlot = 1;
-
-      hotbarRef.once("value").then(snap => {
-        drawHotbar(snap.val());
-      });
-    });
   });
-}
-
-
-function waitForCorrectZoomAndStartAuth() {
-  if (checkZoomLevelStartup()) {
-    // Zoom OK, on peut démarrer Firebase Auth
-    auth.onAuthStateChanged(async user => {
-      if (!user) {
-        location.href = "index.html";
-        return;
-      }
-
-      // tout ton code ici...
-
-    });
-  } else {
-    setTimeout(waitForCorrectZoomAndStartAuth, 1000);
-  }
-}
-
-waitForCorrectZoomAndStartAuth();
-
-
  
   document.getElementById("loading").style.display = "none";
 
@@ -911,7 +866,7 @@ waitForCorrectZoomAndStartAuth();
     }
   };
 
-async function addItemToHotbar(itemName) {
+  async function addItemToHotbar(itemName) {
   const hotbarRef = db.ref(`users/${uid}/worlds/${currentWorld}/playerinfos/hotbar`);
   const hotbarSnap = await hotbarRef.once("value");
   const hotbar = hotbarSnap.val();
@@ -940,8 +895,9 @@ async function addItemToHotbar(itemName) {
   console.warn("Hotbar pleine !");
 }
 
-requestAnimationFrame(gameLoop);
-
+  // Lancement de la boucle principale
+  requestAnimationFrame(gameLoop);
+});
 
 
 
