@@ -692,30 +692,30 @@ function correctZoom() {
 window.addEventListener('resize', correctZoom);
 window.addEventListener('load', correctZoom);
 
-function checkZoomLevel(redirectOnZoomChange = false) {
-  const zoomLevel = Math.round(window.devicePixelRatio * 100);
+//function checkZoomLevel(redirectOnZoomChange = false) {
+  //const zoomLevel = Math.round(window.devicePixelRatio * 100);
 
-  const zoomErrorDiv = document.getElementById("zoomError");
-  const loadingDiv = document.getElementById("loading");
+  //const zoomErrorDiv = document.getElementById("zoomError");
+  //const loadingDiv = document.getElementById("loading");
 
-  if (zoomLevel !== 100) {
-    zoomErrorDiv.style.display = "block";
-    if (loadingDiv) loadingDiv.style.display = "flex";
-    if (redirectOnZoomChange) {
-      location.href = "play.html";
-    }
-    return false;
-  } else {
-    zoomErrorDiv.style.display = "none";
-    return true;
-  }
-}
+  //if (zoomLevel !== 100) {
+    //zoomErrorDiv.style.display = "block";
+    //if (loadingDiv) loadingDiv.style.display = "flex";
+    //if (redirectOnZoomChange) {
+     // location.href = "play.html";
+    //}
+    //return false;
+  //} else {
+    //zoomErrorDiv.style.display = "none";
+    //return true;
+  //}
+//}
 
 // Vérifie le zoom dès le chargement
-if (!checkZoomLevel()) {
+//if (!checkZoomLevel()) {
   // Empêche le jeu de se lancer si zoom incorrect
-  document.getElementById("loading").style.display = "flex";
-}
+  //document.getElementById("loading").style.display = "flex";
+//}
 
 // Si on zoom/dézoom en cours de jeu => redirige vers play.html
 window.addEventListener("resize", () => {
