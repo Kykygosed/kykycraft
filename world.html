@@ -332,6 +332,8 @@ let nearbyTree = null;
 let droppedItems = [];
 const woodImg = new Image();
 woodImg.src = "wood.png";
+const pathImg = new Image();
+pathImg.src = "path2.png";  // ou "path.png" selon le nom exact
 
 
 const timeDisplay = document.createElement("div");
@@ -434,6 +436,20 @@ async function loadOrGenerateTrees() {
     }
   }
 }
+let pathPositions = [];
+
+async function loadOrGeneratePaths() {
+  const pathsRef = db.ref(`users/${uid}/worlds/${currentWorld}/worldinfo/paths`);
+  const snap = await pathsRef.once("value");
+
+  if (snap.exists()) {
+    pathPositions = Object.values(snap.val());
+  } else {
+    // Optionnel : génération aléatoire ou vide si pas besoin
+    pathPositions = [];
+  }
+}
+
 let mobs = [];
 const mobSize = 20;
 const mobSpeed = 1;
@@ -915,7 +931,7 @@ if (paths) {
     map.appendChild(pathImg);
 
     // Enregistrement Firebase
-    const pathRef = db.ref(`users/${uid}/worlds/${currentWorld}/worldinfos/paths`);
+    const pathRef = db.ref(`users/${uid}/worlds/${currentWorld}/worldinfo/paths`);
     const key = `${x}_${y}`;
     await pathRef.child(key).set({ x, y });
   });
@@ -1115,7 +1131,12 @@ function drawMobs() {
     }
   }
 }
-
+function drawPaths() {
+  // Par exemple, pour chaque path dans ta liste
+  paths.forEach(path => {
+    ctx.drawImage(pathImg, path.x - player.x, path.y - player.y, tileSize, tileSize);
+  });
+}
 
 // Fonction utilitaire (exemple)
 function isWalkable(x, y) {
