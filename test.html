@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <title>Test path.png</title>
+  <style>
+    body { margin: 0; overflow: hidden; background: #222; }
+    #gameCanvas { display: block; background: #333; }
+  </style>
+</head>
+<body>
+  <canvas id="gameCanvas"></canvas>
+  <script>
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
+
+    function resize() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    }
+    window.addEventListener("resize", resize);
+    resize();
+
+    const pathImg = new Image();
+    pathImg.src = "path.png";
+
+    pathImg.onload = () => {
+      // Dessiner l’image au centre du canvas
+      const x = canvas.width / 2 - pathImg.width / 2;
+      const y = canvas.height / 2 - pathImg.height / 2;
+      ctx.drawImage(pathImg, x, y);
+    };
+
+    pathImg.onerror = () => {
+      console.error("Erreur de chargement de path.png");
+    };
+  </script>
+</body>
+</html>
