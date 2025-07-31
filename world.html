@@ -972,18 +972,18 @@ auth.onAuthStateChanged(async user => {
     }
   };
 
-  async function addItemToHotbar(itemName) {
+async function addItemToHotbar(itemName) {
   const hotbarRef = db.ref(`users/${uid}/worlds/${currentWorld}/playerinfos/hotbar`);
   const hotbarSnap = await hotbarRef.once("value");
-  const hotbar = hotbarSnap.val();
+  const hotbar = hotbarSnap.val() || {};
 
   // Cherche un slot existant avec le même item (stack)
   for (let i = 1; i <= 5; i++) {
-    const slotValue = hotbar[i];
+    const slotValue = hotbar[i.toString()];
     if (slotValue && slotValue.startsWith(itemName)) {
       const match = slotValue.match(/\((\d+)\)/);
       const count = match ? parseInt(match[1]) : 1;
-      hotbar[i] = `${itemName} (${count + 1})`;
+      hotbar[i.toString()] = `${itemName}(${count + 1})`; // sans espace ici
       await hotbarRef.set(hotbar);
       return;
     }
@@ -991,8 +991,8 @@ auth.onAuthStateChanged(async user => {
 
   // Si aucun stack trouvé, cherche un slot vide
   for (let i = 1; i <= 5; i++) {
-    if (!hotbar[i] || hotbar[i] === "EMPTY") {
-      hotbar[i] = itemName;
+    if (!hotbar[i.toString()] || hotbar[i.toString()] === "EMPTY") {
+      hotbar[i.toString()] = itemName;
       await hotbarRef.set(hotbar);
       return;
     }
@@ -1001,9 +1001,6 @@ auth.onAuthStateChanged(async user => {
   console.warn("Hotbar pleine !");
 }
 
-  // Lancement de la boucle principale
-  requestAnimationFrame(gameLoop);
-});
 
 
 
