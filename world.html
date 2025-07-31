@@ -777,7 +777,7 @@ if (item !== "EMPTY") {
       drawHotbar(snap.val());
     });
   });
-
+ 
   document.getElementById("loading").style.display = "none";
 
   // Variable globale pour stocker l'arbre proche
@@ -927,7 +927,31 @@ setInterval(() => {
 initGame();
 
 
-// Puis ta boucle principale gameLoop utilise `monsters`
+// Empêche le zoom clavier (Ctrl +, Ctrl -)
+window.addEventListener('keydown', function (e) {
+  if ((e.ctrlKey || e.metaKey) && (e.key === '+' || e.key === '-' || e.key === '=')) {
+    e.preventDefault();
+  }
+});
+
+// Empêche le zoom molette avec Ctrl
+window.addEventListener('wheel', function (e) {
+  if (e.ctrlKey) {
+    e.preventDefault();
+  }
+}, { passive: false });
+
+// Empêche le zoom tactile (pinch sur mobile/tablette)
+window.addEventListener('gesturestart', function (e) {
+  e.preventDefault();
+});
+window.addEventListener('gesturechange', function (e) {
+  e.preventDefault();
+});
+window.addEventListener('gestureend', function (e) {
+  e.preventDefault();
+});
+
 
 </script>
   
