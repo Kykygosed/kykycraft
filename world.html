@@ -733,7 +733,7 @@ auth.onAuthStateChanged(async user => {
   document.getElementById("loading").style.display = "flex";
 
   // Chargement de la world actuelle
-  const playingSnap = await db.ref(users/${uid}/playing).once("value");
+  const playingSnap = await db.ref(`users/${uid}/playing`).once("value");
   currentWorld = playingSnap.val();
   if (!currentWorld || currentWorld === "Ecran d'accueil") {
     location.href = "play.html";
@@ -741,7 +741,7 @@ auth.onAuthStateChanged(async user => {
   }
 
   // Coordonnées du joueur
-  const coordsSnap = await db.ref(users/${uid}/worlds/${currentWorld}/playerinfos/coords).once("value");
+  const coordsSnap = await db.ref(`users/${uid}/worlds/${currentWorld}/playerinfos/coords`).once("value");
   if (coordsSnap.exists()) {
     const val = coordsSnap.val();
     player.x = parseFloat(val.x) || 100;
@@ -752,7 +752,7 @@ auth.onAuthStateChanged(async user => {
   }
 
   // Heure du monde
-  const dateSnap = await db.ref(users/${uid}/worlds/${currentWorld}/date).once("value");
+  const dateSnap = await db.ref(`users/${uid}/worlds/${currentWorld}/date`).once("value");
   if (dateSnap.exists()) {
     const [h, m] = dateSnap.val().split(":").map(Number);
     inGameMinutes = h * 60 + m;
@@ -761,49 +761,50 @@ auth.onAuthStateChanged(async user => {
   }
 
   // Jour
-  const daySnap = await db.ref(users/${uid}/worlds/${currentWorld}/day).once("value");
+  const daySnap = await db.ref(`users/${uid}/worlds/${currentWorld}/day`).once("value");
   if (daySnap.exists()) currentDay = daySnap.val();
 
   // Cœurs
-  const heartsSnap = await db.ref(users/${uid}/worlds/${currentWorld}/playerinfos/hearts).once("value");
+  const heartsSnap = await db.ref(`users/${uid}/worlds/${currentWorld}/playerinfos/hearts`).once("value");
   if (heartsSnap.exists()) {
     hearts = heartsSnap.val();
   } else {
     hearts = maxHearts;
-    await db.ref(users/${uid}/worlds/${currentWorld}/playerinfos/hearts).set(hearts);
+    await db.ref(`users/${uid}/worlds/${currentWorld}/playerinfos/hearts`).set(hearts);
   }
 
   // Mode unique
-  const uniqueSnap = await db.ref(users/${uid}/worlds/${currentWorld}/unique).once("value");
+  const uniqueSnap = await db.ref(`users/${uid}/worlds/${currentWorld}/unique`).once("value");
   uniqueMode = uniqueSnap.exists() && uniqueSnap.val() === true;
 
   await loadOrGenerateTrees();
+
   // 🔁 Charger les paths déjà placés
-const pathRef = db.ref(users/${uid}/worlds/${currentWorld}/worldinfo/paths);
-const snapshot = await pathRef.once("value");
-const paths = snapshot.val();
-const tileSize = 64;
+  const pathRef = db.ref(`users/${uid}/worlds/${currentWorld}/worldinfo/paths`);
+  const snapshot = await pathRef.once("value");
+  const paths = snapshot.val();
+  const tileSize = 64;
 
-if (paths) {
-  for (const key in paths) {
-    const { x, y } = paths[key];
+  if (paths) {
+    for (const key in paths) {
+      const { x, y } = paths[key];
 
-    const pathImg = document.createElement("img");
-    pathImg.src = "path.png";
-    pathImg.style.position = "absolute";
-    pathImg.style.left = ${x}px;
-    pathImg.style.top = ${y}px;
-    pathImg.style.width = ${tileSize}px;
-    pathImg.style.height = ${tileSize}px;
-    map.appendChild(pathImg);
+      const pathImg = document.createElement("img");
+      pathImg.src = "path.png";
+      pathImg.style.position = "absolute";
+      pathImg.style.left = `${x}px`;
+      pathImg.style.top = `${y}px`;
+      pathImg.style.width = `${tileSize}px`;
+      pathImg.style.height = `${tileSize}px`;
+      map.appendChild(pathImg);
+    }
   }
-}
 
-  await db.ref(presence/${uid}).set(true);
+  await db.ref(`presence/${uid}`).set(true);
   updateHeartsUI();
 
   // --- HOTBAR ---
-  const hotbarRef = db.ref(users/${uid}/worlds/${currentWorld}/playerinfos/hotbar);
+  const hotbarRef = db.ref(`users/${uid}/worlds/${currentWorld}/playerinfos/hotbar`);
   const hotbarSnap = await hotbarRef.once("value");
   let selectedSlot = 1;
 
@@ -864,36 +865,36 @@ if (paths) {
       drawHotbar(snap.val());
     });
   });
-const map = document.getElementById("gameCanvas"); // L'élément de la carte (ajuste l'ID si différent)
-const tileSize = 64; // Taille d'une case (à adapter selon ta grille visuelle)
 
-map.addEventListener("click", async (e) => {
-  const hotbarSnap = await hotbarRef.once("value");
-  const hotbar = hotbarSnap.val();
-  const selectedItem = hotbar[selectedSlot.toString()];
+  const map = document.getElementById("gameCanvas"); // L'élément de la carte (ajuste l'ID si différent)
 
-  if (selectedItem !== "pelle") return;
+  map.addEventListener("click", async (e) => {
+    const hotbarSnap = await hotbarRef.once("value");
+    const hotbar = hotbarSnap.val();
+    const selectedItem = hotbar[selectedSlot.toString()];
 
-  // Coordonnées relatives à la carte
-  const rect = map.getBoundingClientRect();
-  const x = Math.floor((e.clientX - rect.left) / tileSize) * tileSize;
-  const y = Math.floor((e.clientY - rect.top) / tileSize) * tileSize;
+    if (selectedItem !== "pelle") return;
 
-  // Création visuelle
-  const pathImg = document.createElement("img");
-  pathImg.src = "path.png";
-  pathImg.style.position = "absolute";
-  pathImg.style.left = ${x}px;
-  pathImg.style.top = ${y}px;
-  pathImg.style.width = ${tileSize}px;
-  pathImg.style.height = ${tileSize}px;
-  map.appendChild(pathImg);
+    // Coordonnées relatives à la carte
+    const rect = map.getBoundingClientRect();
+    const x = Math.floor((e.clientX - rect.left) / tileSize) * tileSize;
+    const y = Math.floor((e.clientY - rect.top) / tileSize) * tileSize;
 
-  // Enregistrement Firebase
-  const pathRef = db.ref(users/${uid}/worlds/${currentWorld}/worldinfos/paths);
-  const key = ${x}_${y};
-  await pathRef.child(key).set({ x, y });
-});
+    // Création visuelle
+    const pathImg = document.createElement("img");
+    pathImg.src = "path.png";
+    pathImg.style.position = "absolute";
+    pathImg.style.left = `${x}px`;
+    pathImg.style.top = `${y}px`;
+    pathImg.style.width = `${tileSize}px`;
+    pathImg.style.height = `${tileSize}px`;
+    map.appendChild(pathImg);
+
+    // Enregistrement Firebase
+    const pathRef = db.ref(`users/${uid}/worlds/${currentWorld}/worldinfo/paths`);
+    const key = `${x}_${y}`;
+    await pathRef.child(key).set({ x, y });
+  });
 
   // --- MENU DE CRAFT (touche E pour ouvrir) ---
   const craftMenu = document.getElementById("craftMenu");
@@ -940,7 +941,7 @@ map.addEventListener("click", async (e) => {
           remaining -= qty;
         } else {
           qty -= remaining;
-          newHotbar[key] = bois(${qty});
+          newHotbar[key] = `bois(${qty})`;
           remaining = 0;
         }
         if (remaining === 0) break;
@@ -989,6 +990,8 @@ map.addEventListener("click", async (e) => {
   document.getElementById("loading").style.display = "none";
   requestAnimationFrame(gameLoop);
 });
+
+
 
 
   // Variable globale pour stocker l'arbre proche
