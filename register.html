@@ -303,12 +303,12 @@
 
       if (currentState === "closed") {
         img.src = "https://imgur.com/OMMmKTZ.jpeg";
-        statusText.innerText = "Aucun évènement n'est en cours.";
+        statusText.innerText = "Aucun évènement n'est en cours. Revenez plus tard!";
         statusEl.appendChild(img);
         statusEl.appendChild(statusText);
       } else if (currentState === "nowclosed") {
         img.src = "https://imgur.com/QKya4tB.jpeg";
-        statusText.innerText = "Les inscriptions sont terminées.";
+        statusText.innerText = "Les inscriptions sont terminées. Merci a ceux qui se sont inscris!";
         statusEl.appendChild(img);
         statusEl.appendChild(statusText);
       } else if (currentState === "open") {
@@ -319,11 +319,11 @@
           statusEl.appendChild(statusText);
         } else if (currentUserState === "accepted") {
           statusEl.classList.add("green");
-          statusText.innerText = "Vous êtes accepté !";
+          statusText.innerText = "Vous êtes accepté ! GG a toi!";
           statusEl.appendChild(statusText);
         } else if (currentUserState === "denied") {
           statusEl.classList.add("red");
-          statusText.innerText = "Vous êtes refusé.";
+          statusText.innerText = "Vous êtes refusé. Une prochaine fois!";
           statusEl.appendChild(statusText);
         } else {
           const btn = document.createElement("button");
