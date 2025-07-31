@@ -730,6 +730,11 @@ auth.onAuthStateChanged(async user => {
   }
 
   uid = user.uid;
+
+  // **IMPORTANT** : déclaration de map en tout début, avant utilisation
+  const map = document.getElementById("gameCanvas"); // Assure-toi que cet ID existe dans ton HTML
+  const tileSize = 64; // Taille d'une case (ajuste si besoin)
+
   document.getElementById("loading").style.display = "flex";
 
   // Chargement de la world actuelle
@@ -783,7 +788,6 @@ auth.onAuthStateChanged(async user => {
   const pathRef = db.ref(`users/${uid}/worlds/${currentWorld}/worldinfo/paths`);
   const snapshot = await pathRef.once("value");
   const paths = snapshot.val();
-  const tileSize = 64;
 
   if (paths) {
     for (const key in paths) {
@@ -866,8 +870,6 @@ auth.onAuthStateChanged(async user => {
     });
   });
 
-  const map = document.getElementById("gameCanvas"); // L'élément de la carte (ajuste l'ID si différent)
-
   map.addEventListener("click", async (e) => {
     const hotbarSnap = await hotbarRef.once("value");
     const hotbar = hotbarSnap.val();
@@ -891,7 +893,7 @@ auth.onAuthStateChanged(async user => {
     map.appendChild(pathImg);
 
     // Enregistrement Firebase
-    const pathRef = db.ref(`users/${uid}/worlds/${currentWorld}/worldinfo/paths`);
+    const pathRef = db.ref(`users/${uid}/worlds/${currentWorld}/worldinfos/paths`);
     const key = `${x}_${y}`;
     await pathRef.child(key).set({ x, y });
   });
