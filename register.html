@@ -179,186 +179,227 @@
   </div>
 
   <!-- POPUP -->
-  <div class="overlay" id="overlay"></div>
-  <div class="popup" id="popup">
-    <h3>Inscription</h3>
-    <form id="inscriptionForm"></form>
-    <button onclick="submitAnswers()">Inscription</button>
-  </div>
+<!-- FORMULAIRE DE CONNEXION -->
+<div class="overlay" id="loginOverlay"></div>
+<div class="popup" id="loginPopup">
+  <h3>Connexion / Inscription</h3>
+  <input type="email" id="email" placeholder="Email">
+  <input type="password" id="password" placeholder="Mot de passe">
+  <div id="loginMessage" style="color: #fcbf49; margin-bottom: 10px;"></div>
+  <button onclick="login()">Connexion</button>
+  <button onclick="signup()" style="margin-top: 10px; background-color: #444;">Créer un compte</button>
+</div>
 
-  <!-- Firebase -->
-  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
-  <script>
-    const firebaseConfig = {
-      apiKey: "AIzaSyDQGmbiwh5LTVq0Wp1q9NrSQzs86vER2XM",
-      authDomain: "kychat-45596.firebaseapp.com",
-      databaseURL: "https://kychat-45596-default-rtdb.firebaseio.com",
-      projectId: "kychat-45596",
-      storageBucket: "kychat-45596.appspot.com",
-      messagingSenderId: "104462848972",
-      appId: "1:104462848972:web:7ac49e63008e9a11150369"
-    };
 
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.database();
-    const auth = firebase.auth();
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+<script>
+  const firebaseConfig = {
+    apiKey: "AIzaSyDQGmbiwh5LTVq0Wp1q9NrSQzs86vER2XM",
+    authDomain: "kychat-45596.firebaseapp.com",
+    databaseURL: "https://kychat-45596-default-rtdb.firebaseio.com",
+    projectId: "kychat-45596",
+    storageBucket: "kychat-45596.appspot.com",
+    messagingSenderId: "104462848972",
+    appId: "1:104462848972:web:7ac49e63008e9a11150369"
+  };
 
-    const titleEl = document.getElementById("event-title");
-    const descEl = document.getElementById("event-description");
-    const statusEl = document.getElementById("status");
-    const overlay = document.getElementById("overlay");
-    const popup = document.getElementById("popup");
-    const form = document.getElementById("inscriptionForm");
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.database();
+  const auth = firebase.auth();
 
-    let currentUser = null;
+  const loginPopup = document.getElementById("loginPopup");
+  const loginOverlay = document.getElementById("loginOverlay");
+  const loginMessage = document.getElementById("loginMessage");
 
-    auth.onAuthStateChanged(user => {
-      if (!user) {
-        window.location.href = "index.html";
-      } else {
-        currentUser = user;
-        loadEvent();
-      }
-    });
+  const titleEl = document.getElementById("event-title");
+  const descEl = document.getElementById("event-description");
+  const statusEl = document.getElementById("status");
+  const overlay = document.getElementById("overlay");
+  const popup = document.getElementById("popup");
+  const form = document.getElementById("inscriptionForm");
 
-  function loadEvent() {
-  let currentState = null;
-  let currentUserState = null;
+  let currentUser = null;
 
-  // Fonction pour mettre à jour le statut
-  function updateStatus() {
-    if (!currentState) return;
-
-    // Mise à jour du titre & description
-    if (currentState === "closed") {
-      titleEl.innerText = "Aucun évènement n'est en cours.";
-      descEl.innerText = "Tenez vous au courant sur discord.";
+  auth.onAuthStateChanged(user => {
+    if (!user) {
+      // Pas connecté → afficher formulaire
+      loginPopup.style.display = "block";
+      loginOverlay.style.display = "block";
     } else {
-      db.ref("event").once("value").then(snap => {
-        const ev = snap.val();
-        titleEl.innerText = ev?.title || "Évènement";
-        descEl.innerText = ev?.description || "";
-      });
+      // Connecté → cacher formulaire
+      currentUser = user;
+      loginPopup.style.display = "none";
+      loginOverlay.style.display = "none";
+      loadEvent();
     }
-
-    statusEl.className = "status-bar"; // reset classes
-    statusEl.innerHTML = ""; // reset contenu
-
-    let img = document.createElement("img");
-    img.style.maxWidth = "100%";
-    img.style.marginBottom = "10px";
-    img.style.borderRadius = "10px";
-
-    let statusText = document.createElement("div");
-    statusText.style.textAlign = "center";
-
-    if (currentState === "closed") {
-      img.src = "https://imgur.com/OMMmKTZ.jpeg";
-      statusText.innerText = "Aucun évènement n'est en cours.";
-      statusEl.appendChild(img);
-      statusEl.appendChild(statusText);
-    } else if (currentState === "nowclosed") {
-      img.src = "https://imgur.com/QKya4tB.jpeg";
-      statusText.innerText = "Les inscriptions sont terminées.";
-      statusEl.appendChild(img);
-      statusEl.appendChild(statusText);
-    } else if (currentState === "open") {
-      if (currentUserState === "pending") {
-        img.src = "https://imgur.com/7TcPaOZ.jpeg";
-        statusText.innerText = "En attente: un admin vous prendra en charge.";
-        statusEl.appendChild(img);
-        statusEl.appendChild(statusText);
-      } else if (currentUserState === "accepted") {
-        statusEl.classList.add("green");
-        statusText.innerText = "Vous êtes accepté !";
-        statusEl.appendChild(statusText);
-      } else if (currentUserState === "denied") {
-        statusEl.classList.add("red");
-        statusText.innerText = "Vous êtes refusé.";
-        statusEl.appendChild(statusText);
-      } else {
-        const btn = document.createElement("button");
-        btn.innerText = "S'inscrire !";
-        btn.style.width = "100%";
-        btn.style.padding = "10px";
-        btn.style.fontSize = "16px";
-        btn.style.fontWeight = "bold";
-        btn.style.color = "white";
-        btn.style.backgroundColor = "#007BFF";
-        btn.style.border = "none";
-        btn.style.borderRadius = "8px";
-        btn.style.cursor = "pointer";
-        btn.style.transition = "background-color 0.3s ease";
-        btn.onmouseover = () => btn.style.backgroundColor = "#0056b3";
-        btn.onmouseout = () => btn.style.backgroundColor = "#007BFF";
-        btn.onclick = openPopup;
-        statusEl.appendChild(btn);
-      }
-    }
-  }
-
-  // Écouteur sur state (évènement)
-  db.ref("state").on("value", snap => {
-    currentState = snap.val();
-    updateStatus();
   });
 
-  // Écouteur sur userState (réponses de l'utilisateur)
-  if (currentUser) {
-    db.ref("answers/" + currentUser.uid + "/userstate").on("value", snap => {
-      currentUserState = snap.val();
-      updateStatus();
-    });
-  }
-}
+  function login() {
+    const email = document.getElementById("email").value.trim();
+    const password = document.getElementById("password").value;
 
-
-    function openPopup() {
-      overlay.style.display = "block";
-      popup.style.display = "block";
-      form.innerHTML = "";
-
-      db.ref("questions").once("value").then(snapshot => {
-        const questions = snapshot.val() || [];
-        questions.forEach((q, i) => {
-          const label = document.createElement("label");
-          label.innerText = q;
-          const input = document.createElement("input");
-          input.type = "text";
-          input.required = true;
-          input.name = i;
-          form.appendChild(label);
-          form.appendChild(input);
-        });
-      });
+    if (!email || !password) {
+      loginMessage.innerText = "Veuillez remplir tous les champs.";
+      return;
     }
 
-    function submitAnswers() {
-      const inputs = form.querySelectorAll("input");
-      const data = {};
-      let allFilled = true;
-
-      inputs.forEach(input => {
-        if (!input.value.trim()) allFilled = false;
-        data[input.name] = input.value.trim();
+    auth.signInWithEmailAndPassword(email, password)
+      .then(() => {
+        loginMessage.innerText = "";
+      })
+      .catch(err => {
+        loginMessage.innerText = "Erreur de connexion.";
       });
+  }
 
-      if (!allFilled) {
-        alert("Tous les champs sont requis !");
-        return;
+  function signup() {
+    const email = document.getElementById("email").value.trim();
+    const password = document.getElementById("password").value;
+
+    if (!email || !password) {
+      loginMessage.innerText = "Veuillez remplir tous les champs.";
+      return;
+    }
+
+    auth.createUserWithEmailAndPassword(email, password)
+      .then(() => {
+        loginMessage.innerText = "";
+      })
+      .catch(err => {
+        loginMessage.innerText = "Erreur de création de compte.";
+      });
+  }
+
+  function loadEvent() {
+    let currentState = null;
+    let currentUserState = null;
+
+    function updateStatus() {
+      if (!currentState) return;
+
+      if (currentState === "closed") {
+        titleEl.innerText = "Aucun évènement n'est en cours.";
+        descEl.innerText = "Tenez vous au courant sur discord.";
+      } else {
+        db.ref("event").once("value").then(snap => {
+          const ev = snap.val();
+          titleEl.innerText = ev?.title || "Évènement";
+          descEl.innerText = ev?.description || "";
+        });
       }
 
-      db.ref("answers/" + currentUser.uid).set({
-        ...data,
-        userstate: "pending"
-      }).then(() => {
-        overlay.style.display = "none";
-        popup.style.display = "none";
-        alert("Inscription envoyée !");
+      statusEl.className = "status-bar";
+      statusEl.innerHTML = "";
+
+      let img = document.createElement("img");
+      img.style.maxWidth = "100%";
+      img.style.marginBottom = "10px";
+      img.style.borderRadius = "10px";
+
+      let statusText = document.createElement("div");
+      statusText.style.textAlign = "center";
+
+      if (currentState === "closed") {
+        img.src = "https://imgur.com/OMMmKTZ.jpeg";
+        statusText.innerText = "Aucun évènement n'est en cours.";
+        statusEl.appendChild(img);
+        statusEl.appendChild(statusText);
+      } else if (currentState === "nowclosed") {
+        img.src = "https://imgur.com/QKya4tB.jpeg";
+        statusText.innerText = "Les inscriptions sont terminées.";
+        statusEl.appendChild(img);
+        statusEl.appendChild(statusText);
+      } else if (currentState === "open") {
+        if (currentUserState === "pending") {
+          img.src = "https://imgur.com/7TcPaOZ.jpeg";
+          statusText.innerText = "En attente: un admin vous prendra en charge.";
+          statusEl.appendChild(img);
+          statusEl.appendChild(statusText);
+        } else if (currentUserState === "accepted") {
+          statusEl.classList.add("green");
+          statusText.innerText = "Vous êtes accepté !";
+          statusEl.appendChild(statusText);
+        } else if (currentUserState === "denied") {
+          statusEl.classList.add("red");
+          statusText.innerText = "Vous êtes refusé.";
+          statusEl.appendChild(statusText);
+        } else {
+          const btn = document.createElement("button");
+          btn.innerText = "S'inscrire !";
+          btn.style.width = "100%";
+          btn.style.padding = "10px";
+          btn.style.fontSize = "16px";
+          btn.style.fontWeight = "bold";
+          btn.style.color = "white";
+          btn.style.backgroundColor = "#007BFF";
+          btn.style.border = "none";
+          btn.style.borderRadius = "8px";
+          btn.style.cursor = "pointer";
+          btn.style.transition = "background-color 0.3s ease";
+          btn.onmouseover = () => btn.style.backgroundColor = "#0056b3";
+          btn.onmouseout = () => btn.style.backgroundColor = "#007BFF";
+          btn.onclick = openPopup;
+          statusEl.appendChild(btn);
+        }
+      }
+    }
+
+    db.ref("state").on("value", snap => {
+      currentState = snap.val();
+      updateStatus();
+    });
+
+    if (currentUser) {
+      db.ref("answers/" + currentUser.uid + "/userstate").on("value", snap => {
+        currentUserState = snap.val();
+        updateStatus();
       });
     }
-  </script>
+  }
+
+  function openPopup() {
+    overlay.style.display = "block";
+    popup.style.display = "block";
+    form.innerHTML = "";
+
+    db.ref("questions").once("value").then(snapshot => {
+      const questions = snapshot.val() || [];
+      questions.forEach((q, i) => {
+        const label = document.createElement("label");
+        label.innerText = q;
+        const input = document.createElement("input");
+        input.type = "text";
+        input.required = true;
+        input.name = i;
+        form.appendChild(label);
+        form.appendChild(input);
+      });
+    });
+  }
+
+  function submitAnswers() {
+    const inputs = form.querySelectorAll("input");
+    const data = {};
+    let allFilled = true;
+
+    inputs.forEach(input => {
+      if (!input.value.trim()) allFilled = false;
+      data[input.name] = input.value.trim();
+    });
+
+    if (!allFilled) return;
+
+    db.ref("answers/" + currentUser.uid).set({
+      ...data,
+      userstate: "pending"
+    }).then(() => {
+      overlay.style.display = "none";
+      popup.style.display = "none";
+    });
+  }
+</script>
+
 </body>
 </html>
