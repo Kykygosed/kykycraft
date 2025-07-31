@@ -596,20 +596,22 @@ function gameLoop() {
       ctx.fillRect(screenX - 16, screenY - 32, 32, 64);
     }
 
-    // Vérification proximité arbre
     const dist = Math.hypot(tree.x - player.x, tree.y - player.y);
     if (dist < 40 && !nearbyTree) {
       nearbyTree = tree;
     }
   }
 
+  // Affichage des objets au sol (bois)
+  for (const drop of droppedItems) {
+    const screenX = canvas.width / 2 + (drop.x - player.x);
+    const screenY = canvas.height / 2 + (drop.y - player.y);
+    ctx.drawImage(woodImg, screenX - 16, screenY - 16, 32, 32);
+  }
+
   // Afficher ou cacher le bouton "Casser"
   const breakBtn = document.getElementById("breakBtn");
-  if (nearbyTree) {
-    breakBtn.style.display = "block";
-  } else {
-    breakBtn.style.display = "none";
-  }
+  breakBtn.style.display = nearbyTree ? "block" : "none";
 
   drawMobs();
 
@@ -619,16 +621,10 @@ function gameLoop() {
   requestAnimationFrame(gameLoop);
 }
 
+
   
 
 
-
-// Affichage des objets au sol (bois)
-for (const drop of droppedItems) {
-  const screenX = canvas.width / 2 + (drop.x - player.x);
-  const screenY = canvas.height / 2 + (drop.y - player.y);
-  ctx.drawImage(woodImg, screenX - 16, screenY - 16, 32, 32);
-}
 
 function openMenu() {
   menuPopup.style.display = "block";
@@ -654,6 +650,23 @@ window.addEventListener("beforeunload", async () => {
   await db.ref(`users/${uid}/playing`).set("Ecran d'accueil");
 });
 
+function correctZoom() {
+  const zoomLevel = window.devicePixelRatio;
+  if (zoomLevel !== 1) {
+    document.body.style.transform = `scale(${1 / zoomLevel})`;
+    document.body.style.transformOrigin = '0 0';
+    document.body.style.width = `${100 * zoomLevel}%`;
+    document.body.style.height = `${100 * zoomLevel}%`;
+  } else {
+    document.body.style.transform = '';
+    document.body.style.width = '';
+    document.body.style.height = '';
+  }
+}
+window.addEventListener('resize', correctZoom);
+window.addEventListener('load', correctZoom);
+
+  
   
 auth.onAuthStateChanged(async user => {
   if (!user) {
