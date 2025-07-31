@@ -933,6 +933,56 @@ auth.onAuthStateChanged(async user => {
     await updateHotbarAndRedraw(hotbar);
     console.log("Pelle fabriquée !");
   };
+canvas.addEventListener("contextmenu", async (e) => {
+  e.preventDefault(); // empêche le menu clic droit natif
+
+  if (isDead || uniqueMode) return; // pas en mode mort ou unique
+  const hotbarSnap = await db.ref(`users/${uid}/worlds/${currentWorld}/playerinfos/hotbar`).once("value");
+  const hotbar = hotbarSnap.val();
+  const selected = hotbar[selectedSlot.toString()];
+  
+  if (!selected || !selected.startsWith("bois")) return; // bois non sélectionné
+
+  // Convertir les coordonnées clic en coordonnées map
+  const rect = canvas.getBoundingClientRect();
+  const clickX = e.clientX - rect.left;
+  const clickY = e.clientY - rect.top;
+
+  const mapX = player.x + (clickX - canvas.width / 2);
+  const mapY = player.y + (clickY - canvas.height / 2);
+
+  const roundedX = Math.round(mapX);
+  const roundedY = Math.round(mapY);
+  const key = `${roundedX}_${roundedY}`;
+
+  // Vérifie qu’il n’y a pas déjà un arbre à cet endroit
+  const existingTreeSnap = await db.ref(`users/${uid}/worlds/${currentWorld}/worldinfo/trees/${key}`).once("value");
+  if (existingTreeSnap.exists()) {
+    console.log("Un arbre est déjà ici.");
+    return;
+  }
+
+  // Ajoute l’arbre dans Firebase
+  await db.ref(`users/${uid}/worlds/${currentWorld}/worldinfo/trees/${key}`).set({
+    x: roundedX,
+    y: roundedY
+  });
+
+  // Ajoute-le dans la liste locale
+  treePositions.push({ x: roundedX, y: roundedY });
+
+  // Retire 1 bois de la hotbar
+  const match = selected.match(/\((\d+)\)/);
+  let count = match ? parseInt(match[1]) : 1;
+  if (count <= 1) {
+    hotbar[selectedSlot.toString()] = "EMPTY";
+  } else {
+    hotbar[selectedSlot.toString()] = `bois(${count - 1})`;
+  }
+  await db.ref(`users/${uid}/worlds/${currentWorld}/playerinfos/hotbar`).set(hotbar);
+
+  console.log("Arbre planté à", key);
+});
 
   // ✅ FIN INIT
   document.getElementById("loading").style.display = "none";
