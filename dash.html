@@ -1,74 +1,32 @@
 <!DOCTYPE html>
-<html>
+<html lang="fr">
 <head>
   <meta charset="UTF-8">
-  <title>Panel Admin</title>
+  <title>Admin Panel</title>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: #f5f5f5;
-      padding: 30px;
-    }
-    h1, h3 {
-      color: #333;
-    }
-    input, textarea, button {
-      display: block;
-      margin: 10px 0;
-      padding: 8px;
-      width: 300px;
-      max-width: 100%;
-    }
-    button {
-      width: auto;
-      background-color: #007bff;
-      border: none;
-      color: white;
-      cursor: pointer;
-      border-radius: 4px;
-    }
-    button:hover {
-      background-color: #0056b3;
-    }
-    #questionsContainer input {
-      width: 100%;
-      margin-bottom: 5px;
-    }
+    body { font-family: sans-serif; background: #0f172a; color: white; padding: 2rem; }
+    .answer-card { border: 1px solid #ccc; margin: 10px 0; padding: 10px; background: #1e293b; border-radius: 8px; }
+    .pending { color: orange; }
+    .accepted { color: lime; }
+    .denied { color: red; }
   </style>
 </head>
 <body>
-  <h1>Panneau d'administration</h1>
+  <h1>🎛️ Admin Panel</h1>
+  <h2 id="event-title">Chargement...</h2>
+  <p id="event-description"></p>
+  <p id="event-status"></p>
+  <hr>
+  <h3>📋 Réponses utilisateurs</h3>
+  <div id="answers-container"></div>
 
-  <div id="passwordSection">
-    <h3>Entrer le mot de passe admin</h3>
-    <input type="password" id="passwordInput" placeholder="Mot de passe">
-    <button onclick="checkPassword()">Valider</button>
-  </div>
+  <!-- Firebase App -->
+  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js"></script>
 
-  <div id="panelSection" style="display:none;">
-    <label>Titre de l'évènement:</label>
-    <input type="text" id="title">
-
-    <label>Description de l'évènement:</label>
-    <textarea id="description"></textarea>
-
-    <label>Nombre max d'inscriptions:</label>
-    <input type="number" id="max">
-
-    <h3>Questions</h3>
-    <div id="questionsContainer"></div>
-    <button onclick="addQuestion()">Nouvelle question</button>
-
-    <hr>
-    <button onclick="saveAll()">Enregistrer</button>
-    <button onclick="setShow()">Afficher</button>
-    <button onclick="toggleState()" id="stateBtn">Démarrer les inscriptions</button>
-  </div>
-
-  <!-- Firebase & JS -->
-  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
   <script>
+    // Config Firebase
 const firebaseConfig = {
   apiKey: "AIzaSyBPq6Wfxzq02MfK69BFxHm9_FUjDGTmAcw",
   authDomain: "kykychat-24c7f.firebaseapp.com",
@@ -80,80 +38,73 @@ const firebaseConfig = {
 };
 
     firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
     const db = firebase.database();
 
-    let currentState = "closed";
+    // Autoriser uniquement les admins
+    const ADMIN_EMAILS = ["kykygosed@gmail.com"]; // à adapter
 
-    function checkPassword() {
-      const input = document.getElementById("passwordInput").value;
-      db.ref("password").once("value").then(snapshot => {
-        if (snapshot.val() === input) {
-          document.getElementById("passwordSection").style.display = "none";
-          document.getElementById("panelSection").style.display = "block";
-        } else {
-          alert("Mot de passe incorrect.");
-          window.location.href = "index.html";
+    auth.onAuthStateChanged(user => {
+      if (!user || !ADMIN_EMAILS.includes(user.email)) {
+        window.location.href = "index.html";
+      } else {
+        chargerEvenement();
+        chargerReponses();
+      }
+    });
+
+    function chargerEvenement() {
+      db.ref("event").once("value").then(snapshot => {
+        const data = snapshot.val() || {};
+        document.getElementById("event-title").textContent = data.title || "Aucun évènement.";
+        document.getElementById("event-description").textContent = data.description || "Vous trouverez les informations d'events sur discord.";
+      });
+
+      db.ref("state").once("value").then(snapshot => {
+        const state = snapshot.val();
+        let statut = "";
+        switch (state) {
+          case "open":
+            statut = "✅ Évènement en cours – inscriptions ouvertes.";
+            break;
+          case "nowclosed":
+            statut = "🕔 Inscriptions terminées.";
+            break;
+          case "closed":
+          default:
+            statut = "❌ Aucun évènement en cours.";
         }
+        document.getElementById("event-status").textContent = statut;
       });
     }
 
-    function addQuestion() {
-      const container = document.getElementById("questionsContainer");
-      const input = document.createElement("input");
-      input.type = "text";
-      input.placeholder = "Entrez une question";
-      input.className = "questionInput";
-      container.appendChild(input);
-    }
+    function chargerReponses() {
+      db.ref("answers").on("value", snapshot => {
+        const container = document.getElementById("answers-container");
+        container.innerHTML = "";
+        const data = snapshot.val();
+        if (!data) {
+          container.innerHTML = "<p>Aucune réponse reçue.</p>";
+          return;
+        }
 
-    function saveAll() {
-      const title = document.getElementById("title").value.trim();
-      const description = document.getElementById("description").value.trim();
-      const max = parseInt(document.getElementById("max").value);
-      const questions = Array.from(document.getElementsByClassName("questionInput"))
-        .map(input => input.value.trim())
-        .filter(q => q.length > 0);
-
-      if (!title || !description || isNaN(max)) {
-        alert("Merci de remplir tous les champs.");
-        return;
-      }
-
-      db.ref("event").set({
-        title,
-        description,
-        max
+        Object.entries(data).forEach(([uuid, infos]) => {
+          const card = document.createElement("div");
+          card.className = "answer-card";
+          const statut = infos.userstate || "pending";
+          card.innerHTML = `
+            <strong>ID:</strong> ${uuid}<br>
+            <strong>État:</strong> <span class="${statut}">${statut}</span><br>
+            <ul>
+              ${Object.entries(infos)
+                .filter(([k]) => k !== "userstate")
+                .map(([k, v]) => `<li><strong>${k}:</strong> ${v}</li>`)
+                .join("")}
+            </ul>
+          `;
+          container.appendChild(card);
+        });
       });
-
-      db.ref("questions").set(questions);
-
-      alert("Évènement et questions enregistrés !");
-    }
-
-    function setShow() {
-      db.ref("show").set(true);
-      alert("Champ 'show' activé !");
-    }
-
-    function toggleState() {
-      let nextState;
-      if (currentState === "closed") {
-        nextState = "open";
-        document.getElementById("stateBtn").innerText = "Fermer les inscriptions";
-      } else if (currentState === "open") {
-        nextState = "nowclosed";
-        document.getElementById("stateBtn").innerText = "Finir";
-      } else if (currentState === "nowclosed") {
-        nextState = "Closed";
-        document.getElementById("stateBtn").innerText = "Inscriptions terminées";
-        document.getElementById("stateBtn").disabled = true;
-      }
-
-      if (nextState) {
-        db.ref("state").set(nextState);
-        currentState = nextState;
-        alert("État changé à  " + nextState);
-      }
     }
   </script>
 </body>
