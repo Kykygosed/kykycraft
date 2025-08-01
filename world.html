@@ -601,21 +601,16 @@ function updateGameTime() {
 
 function gameLoop() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // 1. Dessiner la map infinie (background)
   drawInfiniteMap();
 
-  const playerScreenX = canvas.width / 2 - player.size / 2;
-  const playerScreenY = canvas.height / 2 - player.size / 2;
+  // 2. Dessiner les chemins (ex : chemins, routes)
+  drawPaths();
 
-  handleMovement();
-  updateGameTime();
-  updateFirebaseCoords();
-
-  ctx.fillStyle = "red";
-  ctx.fillRect(playerScreenX, playerScreenY, player.size, player.size);
-
+  // 3. Dessiner les arbres avec gestion de l'opacité (nuit, etc.)
   let opacity = updateLighting();
 
-  // Dessin des arbres + détection arbre proche
   nearbyTree = null;
   for (const tree of treePositions) {
     const screenX = canvas.width / 2 + (tree.x - player.x);
@@ -632,25 +627,40 @@ function gameLoop() {
     }
   }
 
-  // Affichage des objets au sol (bois)
+  // 4. Afficher les objets au sol (bois, items)
   for (const drop of droppedItems) {
     const screenX = canvas.width / 2 + (drop.x - player.x);
     const screenY = canvas.height / 2 + (drop.y - player.y);
     ctx.drawImage(woodImg, screenX - 16, screenY - 16, 32, 32);
   }
 
-  // Afficher ou cacher le bouton "Casser"
+  // 5. Dessiner les mobs (monstres, NPCs)
+  drawMobs();
+
+  // 6. Gérer et dessiner le joueur au centre de l’écran
+  const playerScreenX = canvas.width / 2 - player.size / 2;
+  const playerScreenY = canvas.height / 2 - player.size / 2;
+
+  // Gestion des déplacements et temps de jeu
+  handleMovement();
+  updateGameTime();
+  updateFirebaseCoords();
+
+  ctx.fillStyle = "red";
+  ctx.fillRect(playerScreenX, playerScreenY, player.size, player.size);
+
+  // 7. Gérer l'affichage du bouton "Casser"
   const breakBtn = document.getElementById("breakBtn");
   breakBtn.style.display = nearbyTree ? "block" : "none";
 
-  drawMobs();
-  drawPaths();
-  
+  // 8. Mise à jour des infos (coordonnées, temps)
   coordsEl.textContent = `X: ${player.x.toFixed(2)} Y: ${player.y.toFixed(2)}`;
   timeDisplay.textContent = `Jour ${currentDay} - ${getGameTimeStr()}`;
 
+  // 9. Appel récursif pour boucle de jeu
   requestAnimationFrame(gameLoop);
 }
+
 
 
   
