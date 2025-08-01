@@ -605,15 +605,15 @@ function gameLoop() {
   // 1. Dessiner la map infinie (background)
   drawInfiniteMap();
 
-  // 2. Appliquer un voile sombre global (nuit)
+  // 2. Dessiner les chemins (ex : chemins, routes)
+  drawPaths();
+
+  // 3. Appliquer un voile sombre global (nuit)
   let opacity = updateLighting();
   if (opacity > 0) {
     ctx.fillStyle = `rgba(0, 0, 0, ${opacity.toFixed(2)})`;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
   }
-
-  // 3. Dessiner les chemins (ex : chemins, routes)
-  drawPaths();
 
   // 4. Afficher les objets au sol (bois)
   for (const drop of droppedItems) {
@@ -622,14 +622,14 @@ function gameLoop() {
     ctx.drawImage(woodImg, screenX - 16, screenY - 16, 32, 32);
   }
 
-  // 5. Dessiner les mobs
-  drawMobs();
-
-  // 6. Dessiner le joueur
+  // 5. Dessiner le joueur
   const playerScreenX = canvas.width / 2 - player.size / 2;
   const playerScreenY = canvas.height / 2 - player.size / 2;
   ctx.fillStyle = "red";
   ctx.fillRect(playerScreenX, playerScreenY, player.size, player.size);
+
+  // 6. Dessiner les mobs
+  drawMobs();
 
   // 7. Dessiner les arbres au-dessus du joueur et des mobs
   nearbyTree = null;
@@ -660,6 +660,7 @@ function gameLoop() {
   // 11. Boucle de jeu
   requestAnimationFrame(gameLoop);
 }
+
 
 
 
@@ -1112,16 +1113,30 @@ function drawMobs() {
 }
 
 function drawPaths() {
-  console.log("drawPaths called");
-  // Et un dessin simple pour test :
-  ctx.strokeStyle = 'yellow';
-  ctx.lineWidth = 5;
+  if (!paths || paths.length === 0) return;
 
-  ctx.beginPath();
-  ctx.moveTo(canvas.width / 2 - 50, canvas.height / 2);
-  ctx.lineTo(canvas.width / 2 + 50, canvas.height / 2);
-  ctx.stroke();
+  ctx.strokeStyle = "#654321";
+  ctx.lineWidth = 4;
+  ctx.lineCap = "round";
+
+  for (const path of paths) {
+    if (!path || path.length < 2) continue;
+
+    ctx.beginPath();
+    for (let i = 0; i < path.length; i++) {
+      const screenX = canvas.width / 2 + (path[i].x - player.x);
+      const screenY = canvas.height / 2 + (path[i].y - player.y);
+
+      if (i === 0) {
+        ctx.moveTo(screenX, screenY);
+      } else {
+        ctx.lineTo(screenX, screenY);
+      }
+    }
+    ctx.stroke();
+  }
 }
+
 
 
 
