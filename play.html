@@ -479,14 +479,29 @@ const html = `
   });
 }
 function joinFriendWorld(friendUid, worldName) {
-  if (!auth.currentUser) return;
-  const myUid = auth.currentUser.uid;
+  const user = auth.currentUser;
+  if (!user) return;
 
-  // Met à jour le monde joué, puis redirige
-  db.ref('users/' + myUid + '/playing').set(worldName).then(() => {
+  const isOwnWorld = friendUid === user.uid;
+
+  const updates = {
+    playing: worldName
+  };
+
+  if (!isOwnWorld) {
+    updates.alt_owner = friendUid;
+  } else {
+    updates.alt_owner = null; // supprime alt_owner si on joue son propre monde
+  }
+
+  db.ref('users/' + user.uid).update(updates).then(() => {
     window.location.href = 'join.html';
+  }).catch(err => {
+    console.error("Erreur lors de la mise à jour de playing/alt_owner :", err);
+    alert("Erreur, essaie encore.");
   });
 }
+
 
 
 
