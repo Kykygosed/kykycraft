@@ -622,14 +622,14 @@ function gameLoop() {
     ctx.drawImage(woodImg, screenX - 16, screenY - 16, 32, 32);
   }
 
-  // 5. Dessiner le joueur
+  // 5. Dessiner les mobs
+  drawMobs();
+
+  // 6. Dessiner le joueur
   const playerScreenX = canvas.width / 2 - player.size / 2;
   const playerScreenY = canvas.height / 2 - player.size / 2;
   ctx.fillStyle = "red";
   ctx.fillRect(playerScreenX, playerScreenY, player.size, player.size);
-
-  // 6. Dessiner les mobs
-  drawMobs();
 
   // 7. Dessiner les arbres au-dessus du joueur et des mobs
   nearbyTree = null;
@@ -661,42 +661,6 @@ function gameLoop() {
   requestAnimationFrame(gameLoop);
 }
 
-
-
-
-  // 4. Afficher les objets au sol (bois, items)
-  for (const drop of droppedItems) {
-    const screenX = canvas.width / 2 + (drop.x - player.x);
-    const screenY = canvas.height / 2 + (drop.y - player.y);
-    ctx.drawImage(woodImg, screenX - 16, screenY - 16, 32, 32);
-  }
-
-  // 5. Dessiner les mobs (monstres, NPCs)
-  drawMobs();
-
-  // 6. Gérer et dessiner le joueur au centre de l’écran
-  const playerScreenX = canvas.width / 2 - player.size / 2;
-  const playerScreenY = canvas.height / 2 - player.size / 2;
-
-  // Gestion des déplacements et temps de jeu
-  handleMovement();
-  updateGameTime();
-  updateFirebaseCoords();
-
-  ctx.fillStyle = "red";
-  ctx.fillRect(playerScreenX, playerScreenY, player.size, player.size);
-
-  // 7. Gérer l'affichage du bouton "Casser"
-  const breakBtn = document.getElementById("breakBtn");
-  breakBtn.style.display = nearbyTree ? "block" : "none";
-
-  // 8. Mise à jour des infos (coordonnées, temps)
-  coordsEl.textContent = `X: ${player.x.toFixed(2)} Y: ${player.y.toFixed(2)}`;
-  timeDisplay.textContent = `Jour ${currentDay} - ${getGameTimeStr()}`;
-
-  // 9. Appel récursif pour boucle de jeu
-  requestAnimationFrame(gameLoop);
-}
 
 
 
