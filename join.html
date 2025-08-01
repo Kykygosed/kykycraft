@@ -147,64 +147,81 @@
       }
     });
 
-    auth.onAuthStateChanged(user => {
+auth.onAuthStateChanged(user => {
   if (!user) {
     window.location.href = "play.html";
     return;
   }
-  
+
   startTipsRotation();
 
-  // Récupérer le pseudo dans la base 
-  db.ref('users/' + user.uid + '/username').once('value').then(usernameSnap => {
-    const username = usernameSnap.val();
+  // Récupère d'abord les infos du joueur connecté
+  db.ref('users/' + user.uid).once('value').then(userSnap => {
+    const userData = userSnap.val();
+    const username = userData.username;
+    const worldName = userData.playing;
+    const altOwner = userData.alt_owner || user.uid; // propriétaire réel du monde
 
-    if (username === "kykygosed", "kenzou_tv") {
-      // On laisse passer même si dispo false
+    if (!worldName) {
+      showError("Aucun monde sélectionné.");
+      return;
+    }
+
+    if (["kykygosed", "kenzou_tv"].includes(username)) {
+      // Laisse passer même si indisponible
       window.location.href = "world.html";
       return;
     }
 
-    const dispoRef = db.ref("disponibility");
-    const errRef = db.ref("connect_err");
-
-    dispoRef.once('value').then(snapshot => {
+    // On récupère la disponibilité globale
+    db.ref("disponibility").once('value').then(snapshot => {
       let val = snapshot.val();
 
       if (val === null) {
-        dispoRef.set(true);
+        db.ref("disponibility").set(true);
         val = true;
       }
 
       if (val === true) {
-        // Dispo ok
-        loadingIcon.style.display = 'inline-block';
-        heading.textContent = "Vérification de la disponibilité du monde...";
-        errorDiv.textContent = "";
-        backBtn.style.display = "none";
+        // Récupération du monde depuis le vrai propriétaire
+        db.ref('users/' + altOwner + '/worlds').once('value').then(worldSnap => {
+          const allWorlds = worldSnap.val();
+          const world = Object.values(allWorlds || {}).find(w => w.name === worldName);
 
-        // Ici tu peux rediriger normalement, par exemple :
-        setTimeout(() => {
-          window.location.href = "world.html";
-        }, 1000); // délai pour voir l’écran de chargement
+          if (!world) {
+            showError("Ce monde n'existe plus chez le joueur hôte.");
+            return;
+          }
+
+          // ✅ Si tout est bon, redirection
+          loadingIcon.style.display = 'inline-block';
+          heading.textContent = "Connexion au monde...";
+          errorDiv.textContent = "";
+          backBtn.style.display = "none";
+
+          setTimeout(() => {
+            window.location.href = "world.html";
+          }, 1000);
+
+        }).catch(err => {
+          showError("Erreur lors du chargement du monde :\n" + err.message);
+        });
 
       } else {
-        // monde non dispo et utilisateur normal => erreur
-        errRef.once('value').then(errSnap => {
+        db.ref("connect_err").once('value').then(errSnap => {
           const errMsg = errSnap.val() || "Le monde n'est pas disponible pour le moment.";
-          showError(" Erreur de connexion au monde :\n" + errMsg);
+          showError("Erreur de connexion au monde :\n" + errMsg);
         }).catch(() => {
-          showError(" Erreur de connexion au monde :\nLe monde n'est pas disponible pour le moment.");
+          showError("Erreur de connexion au monde :\nLe monde n'est pas disponible pour le moment.");
         });
       }
+
     }).catch(err => {
-      showError(" Une erreur est survenue :\n" + err.message);
+      showError("Une erreur est survenue :\n" + err.message);
     });
 
   }).catch(() => {
-    // Si pas de pseudo récupéré, on peut soit bloquer soit laisser passer ?
-    // Ici je bloque au cas où
-    showError("Impossible de récupérer le pseudo utilisateur.");
+    showError("Impossible de récupérer les informations utilisateur.");
   });
 });
 
