@@ -602,37 +602,36 @@ function updateGameTime() {
 function gameLoop() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  // 1. Map infinie (background)
+  // 1. Dessiner la map infinie (background)
   drawInfiniteMap();
 
-  // 1b. Appliquer un voile sombre sur la map (opacité globale)
-  let opacity = updateLighting(); // entre 0 et 1
-
+  // 2. Appliquer un voile sombre global (nuit)
+  let opacity = updateLighting();
   if (opacity > 0) {
     ctx.fillStyle = `rgba(0, 0, 0, ${opacity.toFixed(2)})`;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
   }
 
-  // 2. Chemins
+  // 3. Dessiner les chemins (ex : chemins, routes)
   drawPaths();
 
-  // 3. Objets au sol (bois)
+  // 4. Afficher les objets au sol (bois)
   for (const drop of droppedItems) {
     const screenX = canvas.width / 2 + (drop.x - player.x);
     const screenY = canvas.height / 2 + (drop.y - player.y);
     ctx.drawImage(woodImg, screenX - 16, screenY - 16, 32, 32);
   }
 
-  // 4. Joueur
+  // 5. Dessiner le joueur
   const playerScreenX = canvas.width / 2 - player.size / 2;
   const playerScreenY = canvas.height / 2 - player.size / 2;
   ctx.fillStyle = "red";
   ctx.fillRect(playerScreenX, playerScreenY, player.size, player.size);
 
-  // 5. Mobs
+  // 6. Dessiner les mobs
   drawMobs();
 
-  // 6. Arbres (sans opacité ici car la map est déjà sombre)
+  // 7. Dessiner les arbres au-dessus du joueur et des mobs
   nearbyTree = null;
   for (const tree of treePositions) {
     const screenX = canvas.width / 2 + (tree.x - player.x);
@@ -645,22 +644,23 @@ function gameLoop() {
     }
   }
 
-  // 7. Gestion de déplacement, temps, firebase coords
+  // 8. Gérer le bouton "Casser" selon proximité d'arbre
+  const breakBtn = document.getElementById("breakBtn");
+  breakBtn.style.display = nearbyTree ? "block" : "none";
+
+  // 9. Mettre à jour la logique du jeu
   handleMovement();
   updateGameTime();
   updateFirebaseCoords();
 
-  // 8. Afficher/cacher bouton "Casser"
-  const breakBtn = document.getElementById("breakBtn");
-  breakBtn.style.display = nearbyTree ? "block" : "none";
-
-  // 9. UI coords + heure
+  // 10. Mettre à jour l'affichage des coordonnées et heure
   coordsEl.textContent = `X: ${player.x.toFixed(2)} Y: ${player.y.toFixed(2)}`;
   timeDisplay.textContent = `Jour ${currentDay} - ${getGameTimeStr()}`;
 
-  // 10. Boucle
+  // 11. Boucle de jeu
   requestAnimationFrame(gameLoop);
 }
+
 
 
 
