@@ -1111,12 +1111,15 @@ function drawMobs() {
 }
 
 function drawPaths() {
+  if (!pathPositions || pathPositions.length === 0) return;
+
   pathPositions.forEach(path => {
     const screenX = canvas.width / 2 + (path.x - player.x);
     const screenY = canvas.height / 2 + (path.y - player.y);
     ctx.drawImage(pathImg, screenX - 16, screenY - 16, 32, 32);
   });
 }
+
 
 // Fonction utilitaire (exemple)
 function isWalkable(x, y) {
@@ -1149,15 +1152,14 @@ function spawnMonstersGroup() {
 
 // Ensuite, dans ta fonction d'initialisation du jeu (init ou équivalent)
 function initGame() {
-  // initialisation map, joueur, etc.
+  // ... autres initialisations
 
-  // Chargement des chemins depuis Firebase
   db.ref(`users/${uid}/worlds/${currentWorld}/worldinfo/paths`).on("value", (snapshot) => {
     const data = snapshot.val() || {};
     pathPositions = Object.values(data);
+    console.log("Chemins chargés :", pathPositions);
   });
 
-  // Lancer la génération périodique des monstres
   setInterval(() => {
     const hour = getInGameHour(); // ta fonction pour l'heure en jeu
     if (hour >= 17 || hour < 8) {
@@ -1165,8 +1167,6 @@ function initGame() {
     }
   }, 10000);
 }
-
-initGame();
 
 
 
