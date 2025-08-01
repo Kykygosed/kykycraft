@@ -435,7 +435,7 @@ function updateHeartsUI() {
 
 
 async function loadOrGenerateTrees() {
-  const treesRef = db.ref(`users/${uid}/worlds/${currentWorld}/worldinfo/trees`);
+  const treesRef = db.ref(`users/${ownerId}/worlds/${currentWorld}/worldinfo/trees`);
   const snap = await treesRef.once("value");
 
   if (snap.exists()) {
@@ -505,7 +505,7 @@ function handleDeath() {
 
   // Supprimer le monde si en mode unique
   if (uniqueMode) {
-    const worldRef = db.ref(`users/${uid}/worlds/${currentWorld}`);
+    const worldRef = db.ref(`users/${ownerId}/worlds/${currentWorld}`);
     worldRef.remove()
       .then(() => console.log("Monde supprimé car mode unique"))
       .catch(err => console.error("Erreur lors de la suppression du monde :", err));
@@ -529,7 +529,7 @@ function handleDeath() {
       player.x = 1150.00;
       player.y = 1150.00;
 
-      await db.ref(`users/${uid}/worlds/${currentWorld}/playerinfos/coords`).set({
+      await db.ref(`users/${ownerId}/worlds/${currentWorld}/playerinfos/coords`).set({
         x: player.x,
         y: player.y,
       });
@@ -577,7 +577,7 @@ function savePlayerDied(uuid, world) {
 }
 
 function updateFirebaseCoords() {
-  db.ref(`users/${uid}/worlds/${currentWorld}/playerinfos/coords`).set({
+  db.ref(`users/${ownerId}/worlds/${currentWorld}/playerinfos/coords`).set({
     x: player.x.toFixed(2),
     y: player.y.toFixed(2)
   });
@@ -621,8 +621,8 @@ function updateGameTime() {
     currentDay++;
   }
 
-  db.ref(`users/${uid}/worlds/${currentWorld}/date`).set(getGameTimeStr());
-  db.ref(`users/${uid}/worlds/${currentWorld}/day`).set(currentDay);
+  db.ref(`users/${ownerId}/worlds/${currentWorld}/date`).set(getGameTimeStr());
+  db.ref(`users/${ownerId}/worlds/${currentWorld}/day`).set(currentDay);
 }
 
 function gameLoop() {
@@ -704,11 +704,6 @@ function gameLoop() {
 
 
 
-
-  
-
-
-
 function openMenu() {
   menuPopup.style.display = "block";
   menuBtn.style.display = "none";
@@ -723,8 +718,8 @@ quitBtn.onclick = async () => {
   updateFirebaseCoords();
   await db.ref(`users/${uid}/playing`).set("Ecran d'accueil");
   await db.ref(`presence/${uid}`).set(false);
-  await db.ref(`users/${uid}/worlds/${currentWorld}/date`).set(getGameTimeStr());
-  await db.ref(`users/${uid}/worlds/${currentWorld}/day`).set(currentDay);
+  await db.ref(`users/${ownerId}/worlds/${currentWorld}/date`).set(getGameTimeStr());
+  await db.ref(`users/${ownerId}/worlds/${currentWorld}/day`).set(currentDay);
   location.href = "play.html";
 };
 
@@ -843,16 +838,16 @@ auth.onAuthStateChanged(async user => {
 
 
   // Cœurs
-  const heartsSnap = await db.ref(`users/${uid}/worlds/${currentWorld}/playerinfos/hearts`).once("value");
+  const heartsSnap = await db.ref(`users/${ownerId}/worlds/${currentWorld}/playerinfos/hearts`).once("value");
   if (heartsSnap.exists()) {
     hearts = heartsSnap.val();
   } else {
     hearts = maxHearts;
-    await db.ref(`users/${uid}/worlds/${currentWorld}/playerinfos/hearts`).set(hearts);
+    await db.ref(`users/${ownerId}/worlds/${currentWorld}/hearts`).set(hearts);
   }
 
   // Mode unique
-  const uniqueSnap = await db.ref(`users/${uid}/worlds/${currentWorld}/unique`).once("value");
+  const uniqueSnap = await db.ref(`users/${ownerId}/worlds/${currentWorld}/unique`).once("value");
   uniqueMode = uniqueSnap.exists() && uniqueSnap.val() === true;
 
   await loadOrGenerateTrees();
@@ -860,7 +855,7 @@ auth.onAuthStateChanged(async user => {
   updateHeartsUI();
 
   // --- HOTBAR ---
-  const hotbarRef = db.ref(`users/${uid}/worlds/${currentWorld}/playerinfos/hotbar`);
+  const hotbarRef = db.ref(`users/${ownerId}/worlds/${currentWorld}/playerinfos/hotbar`);
   const hotbarSnap = await hotbarRef.once("value");
   let selectedSlot = 1;
 
@@ -1015,7 +1010,7 @@ canvas.addEventListener("contextmenu", async (e) => {
   e.preventDefault();
   if (isDead || uniqueMode) return;
 
-  const hotbarSnap = await db.ref(`users/${uid}/worlds/${currentWorld}/playerinfos/hotbar`).once("value");
+  const hotbarSnap = await db.ref(`users/${ownerId}/worlds/${currentWorld}/playerinfos/hotbar`).once("value");
   const hotbar = hotbarSnap.val();
   const selected = hotbar[selectedSlot.toString()];
 
@@ -1033,13 +1028,13 @@ canvas.addEventListener("contextmenu", async (e) => {
 
   // === Cas 1 : planter un arbre avec du bois ===
   if (selected.startsWith("bois")) {
-    const existingTreeSnap = await db.ref(`users/${uid}/worlds/${currentWorld}/worldinfo/trees/${key}`).once("value");
+    const existingTreeSnap = await db.ref(`users/${ownerId}/worlds/${currentWorld}/worldinfo/trees/${key}`).once("value");
     if (existingTreeSnap.exists()) {
       console.log("Un arbre est déjà ici.");
       return;
     }
 
-    await db.ref(`users/${uid}/worlds/${currentWorld}/worldinfo/trees/${key}`).set({
+    await db.ref(`users/${ownerId}/worlds/${currentWorld}/worldinfo/trees/${key}`).set({
       x: roundedX,
       y: roundedY
     });
@@ -1053,7 +1048,7 @@ canvas.addEventListener("contextmenu", async (e) => {
     } else {
       hotbar[selectedSlot.toString()] = `bois(${count - 1})`;
     }
-    await db.ref(`users/${uid}/worlds/${currentWorld}/playerinfos/hotbar`).set(hotbar);
+    await db.ref(`users/${ownerId}/worlds/${currentWorld}/playerinfos/hotbar`).set(hotbar);
 
     console.log("Arbre planté à", key);
   }
@@ -1061,7 +1056,7 @@ canvas.addEventListener("contextmenu", async (e) => {
   // === Cas 2 : poser un chemin avec la pelle ===
   else if (selected === "pelle") {
   const newPath = { x: roundedX, y: roundedY };
-  await db.ref(`users/${uid}/worlds/${currentWorld}/worldinfo/paths`).push(newPath); // génère une clé unique
+  await db.ref(`users/${ownerId}/worlds/${currentWorld}/worldinfo/paths`).push(newPath); // génère une clé unique
   pathPositions.push(newPath); // ajoute localement pour le dessin
   console.log("Chemin placé à", newPath);
 }
@@ -1084,7 +1079,7 @@ canvas.addEventListener("contextmenu", async (e) => {
 
     const key = `${nearbyTree.x}_${nearbyTree.y}`;
     try {
-      await db.ref(`users/${uid}/worlds/${currentWorld}/worldinfo/trees/${key}`).remove();
+      await db.ref(`users/${ownerId}/worlds/${currentWorld}/worldinfo/trees/${key}`).remove();
 
       // Mise à jour locale des arbres
       treePositions = treePositions.filter(tree => !(tree.x === nearbyTree.x && tree.y === nearbyTree.y));
@@ -1102,7 +1097,7 @@ canvas.addEventListener("contextmenu", async (e) => {
   };
 
 async function addItemToHotbar(itemName) {
-  const hotbarRef = db.ref(`users/${uid}/worlds/${currentWorld}/playerinfos/hotbar`);
+  const hotbarRef = db.ref(`users/${ownerId}/worlds/${currentWorld}/playerinfos/hotbar`);
   const hotbarSnap = await hotbarRef.once("value");
   const hotbar = hotbarSnap.val() || {};
 
@@ -1166,7 +1161,7 @@ function drawMobs() {
         damageCooldown = now;
         hearts = Math.max(0, hearts - 1);
         updateHeartsUI();
-        db.ref(`users/${uid}/worlds/${currentWorld}/playerinfos/hearts`).set(hearts);
+        db.ref(`users/${ownerId}/worlds/${currentWorld}/playerinfos/hearts`).set(hearts);
         if (hearts <= 0) handleDeath();
       }
     }
@@ -1230,7 +1225,7 @@ function spawnMonstersGroup() {
 // Ensuite, dans ta fonction d'initialisation du jeu (init ou équivalent)
 function initGame() {
   // 1. Charger une première fois les chemins depuis Firebase
-  db.ref(`users/${uid}/worlds/${currentWorld}/worldinfo/paths`).once("value")
+  db.ref(`users/${ownerId}/worlds/${currentWorld}/worldinfo/paths`).once("value")
     .then(snapshot => {
       const data = snapshot.val();
       if (data) {
@@ -1251,7 +1246,7 @@ function initGame() {
     });
 
   // 2. Écoute en temps réel des chemins
-  db.ref(`users/${uid}/worlds/${currentWorld}/worldinfo/paths`).on("value", (snapshot) => {
+  db.ref(`users/${ownerId}/worlds/${currentWorld}/worldinfo/paths`).on("value", (snapshot) => {
     const data = snapshot.val();
     if (data) {
       pathPositions = Object.values(data).filter(seg => isValidPathSegment(seg));
