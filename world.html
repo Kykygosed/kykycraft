@@ -1116,19 +1116,20 @@ function drawPaths() {
 
   ctx.beginPath();
 
-  for (let i = 0; i < paths.length; i++) {
-    const screenX = canvas.width / 2 + (paths[i].x - player.x);
-    const screenY = canvas.height / 2 + (paths[i].y - player.y);
+  paths.forEach((point, i) => {
+    const screenX = canvas.width / 2 + (point.x - player.x);
+    const screenY = canvas.height / 2 + (point.y - player.y);
 
     if (i === 0) {
       ctx.moveTo(screenX, screenY);
     } else {
       ctx.lineTo(screenX, screenY);
     }
-  }
+  });
 
   ctx.stroke();
 }
+
 
 
 
