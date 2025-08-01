@@ -323,6 +323,9 @@ let nearbyTree = null;
 let droppedItems = [];
 const woodImg = new Image();
 woodImg.src = "wood.png";
+const pathImg = new Image();
+pathImg.src = "path2.png";
+
 
 
 const timeDisplay = document.createElement("div");
@@ -640,7 +643,8 @@ function gameLoop() {
   breakBtn.style.display = nearbyTree ? "block" : "none";
 
   drawMobs();
-
+  drawPaths();
+  
   coordsEl.textContent = `X: ${player.x.toFixed(2)} Y: ${player.y.toFixed(2)}`;
   timeDisplay.textContent = `Jour ${currentDay} - ${getGameTimeStr()}`;
 
@@ -934,54 +938,61 @@ auth.onAuthStateChanged(async user => {
     console.log("Pelle fabriquée !");
   };
 canvas.addEventListener("contextmenu", async (e) => {
-  e.preventDefault(); // empêche le menu clic droit natif
+  e.preventDefault();
+  if (isDead || uniqueMode) return;
 
-  if (isDead || uniqueMode) return; // pas en mode mort ou unique
   const hotbarSnap = await db.ref(`users/${uid}/worlds/${currentWorld}/playerinfos/hotbar`).once("value");
   const hotbar = hotbarSnap.val();
   const selected = hotbar[selectedSlot.toString()];
-  
-  if (!selected || !selected.startsWith("bois")) return; // bois non sélectionné
 
-  // Convertir les coordonnées clic en coordonnées map
+  if (!selected) return;
+
+  // Conversion des coordonnées
   const rect = canvas.getBoundingClientRect();
   const clickX = e.clientX - rect.left;
   const clickY = e.clientY - rect.top;
-
   const mapX = player.x + (clickX - canvas.width / 2);
   const mapY = player.y + (clickY - canvas.height / 2);
-
   const roundedX = Math.round(mapX);
   const roundedY = Math.round(mapY);
   const key = `${roundedX}_${roundedY}`;
 
-  // Vérifie qu’il n’y a pas déjà un arbre à cet endroit
-  const existingTreeSnap = await db.ref(`users/${uid}/worlds/${currentWorld}/worldinfo/trees/${key}`).once("value");
-  if (existingTreeSnap.exists()) {
-    console.log("Un arbre est déjà ici.");
-    return;
+  // === Cas 1 : planter un arbre avec du bois ===
+  if (selected.startsWith("bois")) {
+    const existingTreeSnap = await db.ref(`users/${uid}/worlds/${currentWorld}/worldinfo/trees/${key}`).once("value");
+    if (existingTreeSnap.exists()) {
+      console.log("Un arbre est déjà ici.");
+      return;
+    }
+
+    await db.ref(`users/${uid}/worlds/${currentWorld}/worldinfo/trees/${key}`).set({
+      x: roundedX,
+      y: roundedY
+    });
+    treePositions.push({ x: roundedX, y: roundedY });
+
+    // Réduction du stock de bois
+    const match = selected.match(/\((\d+)\)/);
+    let count = match ? parseInt(match[1]) : 1;
+    if (count <= 1) {
+      hotbar[selectedSlot.toString()] = "EMPTY";
+    } else {
+      hotbar[selectedSlot.toString()] = `bois(${count - 1})`;
+    }
+    await db.ref(`users/${uid}/worlds/${currentWorld}/playerinfos/hotbar`).set(hotbar);
+
+    console.log("Arbre planté à", key);
   }
 
-  // Ajoute l’arbre dans Firebase
-  await db.ref(`users/${uid}/worlds/${currentWorld}/worldinfo/trees/${key}`).set({
-    x: roundedX,
-    y: roundedY
-  });
-
-  // Ajoute-le dans la liste locale
-  treePositions.push({ x: roundedX, y: roundedY });
-
-  // Retire 1 bois de la hotbar
-  const match = selected.match(/\((\d+)\)/);
-  let count = match ? parseInt(match[1]) : 1;
-  if (count <= 1) {
-    hotbar[selectedSlot.toString()] = "EMPTY";
-  } else {
-    hotbar[selectedSlot.toString()] = `bois(${count - 1})`;
+  // === Cas 2 : poser un chemin avec la pelle ===
+  else if (selected === "pelle") {
+    await db.ref(`users/${uid}/worlds/${currentWorld}/worldinfo/paths/${key}`).set({
+      x: roundedX,
+      y: roundedY
+    });
+    pathPositions.push({ x: roundedX, y: roundedY });
+    console.log("Chemin placé à", key);
   }
-  await db.ref(`users/${uid}/worlds/${currentWorld}/playerinfos/hotbar`).set(hotbar);
-
-  console.log("Arbre planté à", key);
 });
 
   // ✅ FIN INIT
@@ -1089,6 +1100,13 @@ function drawMobs() {
   }
 }
 
+function drawPaths() {
+  pathPositions.forEach(path => {
+    const screenX = canvas.width / 2 + (path.x - player.x);
+    const screenY = canvas.height / 2 + (path.y - player.y);
+    ctx.drawImage(pathImg, screenX - 16, screenY - 16, 32, 32);
+  });
+}
 
 // Fonction utilitaire (exemple)
 function isWalkable(x, y) {
