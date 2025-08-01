@@ -785,20 +785,39 @@ auth.onAuthStateChanged(async user => {
     location.href = "index.html";
     return;
   }
-
   uid = user.uid;
-  document.getElementById("loading").style.display = "flex";
 
-  // Chargement de la world actuelle
-  const playingSnap = await db.ref(`users/${uid}/playing`).once("value");
-  currentWorld = playingSnap.val();
-  if (!currentWorld || currentWorld === "Ecran d'accueil") {
-    location.href = "play.html";
-    return;
+  // Récupérer alt_owner et uuid depuis l'URL
+  const urlParams = new URLSearchParams(window.location.search);
+  const alt_owner = urlParams.get("alt_owner");
+  const uuid = urlParams.get("uuid");
+
+  // Déterminer ownerId selon alt_owner et uuid
+  let ownerId;
+  if (alt_owner === "own") {
+    ownerId = uid;
+  } else if (uuid) {
+    ownerId = uuid;
+  } else {
+    ownerId = uid;
   }
 
-  // Coordonnées du joueur
-  const coordsSnap = await db.ref(`users/${uid}/worlds/${currentWorld}/playerinfos/coords`).once("value");
+  // Charger le monde courant de ownerId
+  const playingSnap = await db.ref(`users/${ownerId}/playing`).once("value");
+  currentWorld = playingSnap.val();
+
+  if (!currentWorld || currentWorld === "Ecran d'accueil") {
+    if (ownerId === uid) {
+      location.href = "play.html";
+      return;
+    } else {
+      alert("Le propriétaire alternatif n'a pas de monde actif.");
+      return;
+    }
+  }
+
+  // Charger les coordonnées du joueur dans ce monde
+  const coordsSnap = await db.ref(`users/${ownerId}/worlds/${currentWorld}/playerinfos/coords`).once("value");
   if (coordsSnap.exists()) {
     const val = coordsSnap.val();
     player.x = parseFloat(val.x) || 100;
@@ -808,18 +827,20 @@ auth.onAuthStateChanged(async user => {
     player.y = 100;
   }
 
-  // Heure du monde
-  const dateSnap = await db.ref(`users/${uid}/worlds/${currentWorld}/date`).once("value");
+  // Charger la date du monde
+  const dateSnap = await db.ref(`users/${ownerId}/worlds/${currentWorld}/date`).once("value");
+  let dateStr = "";
   if (dateSnap.exists()) {
-    const [h, m] = dateSnap.val().split(":").map(Number);
-    inGameMinutes = h * 60 + m;
-  } else {
-    inGameMinutes = 12 * 60;
+    dateStr = dateSnap.val();
   }
 
-  // Jour
-  const daySnap = await db.ref(`users/${uid}/worlds/${currentWorld}/day`).once("value");
-  if (daySnap.exists()) currentDay = daySnap.val();
+  // Charger le jour (day) du monde
+  const daysnap = await db.ref(`users/${ownerId}/worlds/${currentWorld}/day`).once("value");
+  let dayVal = 0;
+  if (daysnap.exists()) {
+    dayVal = daysnap.val();
+  }
+
 
   // Cœurs
   const heartsSnap = await db.ref(`users/${uid}/worlds/${currentWorld}/playerinfos/hearts`).once("value");
