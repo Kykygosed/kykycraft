@@ -602,36 +602,36 @@ function updateGameTime() {
 function gameLoop() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  // 1. Dessiner la map infinie (background)
+  // 1. Dessiner la map infinie
   drawInfiniteMap();
 
-  // 2. Dessiner les chemins (ex : chemins, routes)
+  // 2. Dessiner les chemins AVANT d'appliquer le voile
   drawPaths();
 
-  // 3. Appliquer un voile sombre global (nuit)
-  let opacity = updateLighting();
+  // 3. Appliquer le voile sombre (nuit)
+  const opacity = updateLighting(); // cette fonction doit renvoyer un float entre 0 et 1
   if (opacity > 0) {
     ctx.fillStyle = `rgba(0, 0, 0, ${opacity.toFixed(2)})`;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
   }
 
-  // 4. Afficher les objets au sol (bois)
+  // 4. Afficher les objets au sol
   for (const drop of droppedItems) {
     const screenX = canvas.width / 2 + (drop.x - player.x);
     const screenY = canvas.height / 2 + (drop.y - player.y);
     ctx.drawImage(woodImg, screenX - 16, screenY - 16, 32, 32);
   }
 
-  // 5. Dessiner le joueur
+  // 5. Dessiner les mobs
+  drawMobs();
+
+  // 6. Dessiner le joueur
   const playerScreenX = canvas.width / 2 - player.size / 2;
   const playerScreenY = canvas.height / 2 - player.size / 2;
   ctx.fillStyle = "red";
   ctx.fillRect(playerScreenX, playerScreenY, player.size, player.size);
 
-  // 6. Dessiner les mobs
-  drawMobs();
-
-  // 7. Dessiner les arbres au-dessus du joueur et des mobs
+  // 7. Dessiner les arbres
   nearbyTree = null;
   for (const tree of treePositions) {
     const screenX = canvas.width / 2 + (tree.x - player.x);
@@ -644,28 +644,23 @@ function gameLoop() {
     }
   }
 
-  // 8. Gérer le bouton "Casser" selon proximité d'arbre
+  // 8. Gérer le bouton "Casser"
   const breakBtn = document.getElementById("breakBtn");
   breakBtn.style.display = nearbyTree ? "block" : "none";
 
-  // 9. Mettre à jour la logique du jeu
+  // 9. Gérer les mouvements et temps
   handleMovement();
-  updateGameTime();
+  updateGameTime(); // met à jour currentDay et gameTime
   updateFirebaseCoords();
 
-  // 10. Mettre à jour l'affichage des coordonnées et heure
+  // 10. Afficher les infos
   coordsEl.textContent = `X: ${player.x.toFixed(2)} Y: ${player.y.toFixed(2)}`;
   timeDisplay.textContent = `Jour ${currentDay} - ${getGameTimeStr()}`;
+  updateHealthBar(); // si tu as une fonction qui gère la vie
 
-  // 11. Boucle de jeu
+  // 11. Continuer la boucle
   requestAnimationFrame(gameLoop);
 }
-
-
-
-
-
-  
 
 
 
@@ -1113,29 +1108,28 @@ function drawMobs() {
 }
 
 function drawPaths() {
-  if (!paths || paths.length === 0) return;
+  if (!paths || paths.length < 2) return;
 
   ctx.strokeStyle = "#654321";
   ctx.lineWidth = 4;
   ctx.lineCap = "round";
 
-  for (const path of paths) {
-    if (!path || path.length < 2) continue;
+  ctx.beginPath();
 
-    ctx.beginPath();
-    for (let i = 0; i < path.length; i++) {
-      const screenX = canvas.width / 2 + (path[i].x - player.x);
-      const screenY = canvas.height / 2 + (path[i].y - player.y);
+  for (let i = 0; i < paths.length; i++) {
+    const screenX = canvas.width / 2 + (paths[i].x - player.x);
+    const screenY = canvas.height / 2 + (paths[i].y - player.y);
 
-      if (i === 0) {
-        ctx.moveTo(screenX, screenY);
-      } else {
-        ctx.lineTo(screenX, screenY);
-      }
+    if (i === 0) {
+      ctx.moveTo(screenX, screenY);
+    } else {
+      ctx.lineTo(screenX, screenY);
     }
-    ctx.stroke();
   }
+
+  ctx.stroke();
 }
+
 
 
 
