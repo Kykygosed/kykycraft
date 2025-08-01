@@ -428,18 +428,36 @@ const presenceListener = pSnap => {
   if (existingOnline) existingOnline.remove();
   if (existingOffline) existingOffline.remove();
 
-  const html = `
-    <div class="friend" data-uid="${fid}" style="display: flex; justify-content: space-between; align-items: center;">
-      <div>
-        ${username}<br>
-        <span class="status">${playing}</span>
-      </div>
-      ${crown}
-      <button style="margin-left:10px; background:#d9534f; color:white; border:none; border-radius:4px; padding:4px 8px; cursor:pointer;"
-        onclick="removeFriend('${fid}')"
-      >Supprimer</button>
+// Ajoute bouton Rejoindre si le monde actuel a hosting: true
+let joinButton = '';
+if (isOnline && user?.playing && user.worlds) {
+  const worldEntries = Object.entries(user.worlds);
+  for (const [key, w] of worldEntries) {
+    if (w.name === user.playing && w.hosting === true) {
+      joinButton = `
+        <button style="margin-left:10px; background:#28a745; color:white; border:none; border-radius:4px; padding:4px 8px; cursor:pointer;"
+          onclick="joinFriendWorld('${fid}', '${w.name}')"
+        >Rejoindre</button>
+      `;
+      break;
+    }
+  }
+}
+
+const html = `
+  <div class="friend" data-uid="${fid}" style="display: flex; justify-content: space-between; align-items: center;">
+    <div>
+      ${username}<br>
+      <span class="status">${playing}</span>
     </div>
-  `;
+    ${crown}
+    ${joinButton}
+    <button style="margin-left:10px; background:#d9534f; color:white; border:none; border-radius:4px; padding:4px 8px; cursor:pointer;"
+      onclick="removeFriend('${fid}')"
+    >Supprimer</button>
+  </div>
+`;
+
 
   const wrapper = document.createElement('div');
   wrapper.innerHTML = html;
@@ -458,6 +476,15 @@ const presenceListener = pSnap => {
         db.ref('presence/' + fid).on('value', presenceListener);
       });
     });
+  });
+}
+function joinFriendWorld(friendUid, worldName) {
+  if (!auth.currentUser) return;
+  const myUid = auth.currentUser.uid;
+
+  // Met à jour le monde joué, puis redirige
+  db.ref('users/' + myUid + '/playing').set(worldName).then(() => {
+    window.location.href = 'join.html';
   });
 }
 
