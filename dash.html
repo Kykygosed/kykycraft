@@ -232,11 +232,29 @@
     }
 
     // Changer l’état
-    function setState(state) {
-      db.ref("/state").set(state)
-        .then(() => alert("État changé: " + state))
-        .catch(err => console.error("Erreur state:", err));
+function setState(state) {
+  if (state === "nowclosed") {
+    const message = prompt("Veuillez entrer un message de fermeture (ex: 'Les inscriptions sont désormais terminées.')");
+    if (!message || message.trim() === "") {
+      alert("Fermeture annulée : le message est requis.");
+      return;
     }
+
+    // Sauvegarder l'état ET le message
+    db.ref("/state").set(state)
+      .then(() => {
+        return db.ref("/closureMessage").set(message.trim());
+      })
+      .then(() => alert("Inscriptions fermées avec message enregistré."))
+      .catch(err => console.error("Erreur fermeture:", err));
+  } else {
+    // États classiques (open, closed)
+    db.ref("/state").set(state)
+      .then(() => alert("État changé: " + state))
+      .catch(err => console.error("Erreur state:", err));
+  }
+}
+
 
     // -------------------
     // Gestion des réponses
