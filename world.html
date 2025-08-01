@@ -1112,27 +1112,28 @@ function drawMobs() {
 }
 
 function drawPaths() {
-  if (!paths || paths.length === 0) return;
+  if (!paths || paths.length < 2) return; // au moins 2 points pour dessiner
 
-  ctx.strokeStyle = "#654321";  // couleur marron foncé pour chemin
+  ctx.strokeStyle = "#654321"; // marron foncé
   ctx.lineWidth = 4;
   ctx.lineCap = "round";
 
   ctx.beginPath();
 
-  for (const segment of paths) {
-    // Convertir les coordonnées du monde en coordonnées écran (centré joueur)
-    const startX = canvas.width / 2 + (segment.x1 - player.x);
-    const startY = canvas.height / 2 + (segment.y1 - player.y);
-    const endX = canvas.width / 2 + (segment.x2 - player.x);
-    const endY = canvas.height / 2 + (segment.y2 - player.y);
+  for (let i = 0; i < paths.length; i++) {
+    const screenX = canvas.width / 2 + (paths[i].x - player.x);
+    const screenY = canvas.height / 2 + (paths[i].y - player.y);
 
-    ctx.moveTo(startX, startY);
-    ctx.lineTo(endX, endY);
+    if (i === 0) {
+      ctx.moveTo(screenX, screenY);
+    } else {
+      ctx.lineTo(screenX, screenY);
+    }
   }
 
   ctx.stroke();
 }
+
 
 // Fonction utilitaire (exemple)
 function isWalkable(x, y) {
