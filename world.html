@@ -222,6 +222,7 @@
   </style>
 
   <!-- Firebase compat -->
+<head>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
@@ -229,58 +230,65 @@
 <body>
 
   <div id="loading">Chargement...</div>
+
   <button id="menuBtn">MENU</button>
   <div id="coords"></div>
+
+  <!-- MENU POPUP -->
   <div id="menuPopup" role="dialog" aria-modal="true" aria-labelledby="menuTitle">
     <div id="menuTitle" style="font-size:18px; margin-bottom:10px;">Menu</div>
     <button id="resumeBtn">Reprendre</button>
     <button id="quitBtn">Sauvegarder et Quitter</button>
+    <button id="hostBtn" style="background-color: green; color: white;">Host</button>
   </div>
 
+  <!-- CANVAS DU JEU -->
   <canvas id="gameCanvas"></canvas>
-  <!-- Affichage des cœurs -->
-<div id="heartsContainer" style="position:fixed; top:10px; right:10px; z-index:20;"></div>
 
-<!-- Écran de mort -->
-<div id="deathScreen">
-  <div class="panel">
-    <h1>Vous avez succombé</h1>
-    <p>Que voulez-vous faire ?</p>
-    <button id="respawnBtn">Respawn</button>
-    <button id="exploreBtn">Explorer</button>
-    <button id="quitBtnTop">Quitter</button>
+  <!-- AFFICHAGE DES COEURS -->
+  <div id="heartsContainer" style="position:fixed; top:10px; right:10px; z-index:20;"></div>
+
+  <!-- ÉCRAN DE MORT -->
+  <div id="deathScreen">
+    <div class="panel">
+      <h1>Vous avez succombé</h1>
+      <p>Que voulez-vous faire ?</p>
+      <button id="respawnBtn">Respawn</button>
+      <button id="exploreBtn">Explorer</button>
+      <button id="quitBtnTop">Quitter</button>
+    </div>
   </div>
 
-</div>
+  <!-- BARRE D'OUTILS -->
+  <div id="hotbar"></div>
 
-</div>
+  <!-- BOUTON CASSER -->
+  <button id="breakBtn" style="display:none; position:absolute; top:10px; right:10px; z-index:10;">CASSER</button>
 
-</div>
-<div id="hotbar"></div>
-<button id="breakBtn" style="display:none; position:absolute; top:10px; right:10px; z-index:10;">CASSER</button>
- <div id="craftMenu" style="display:none; position: fixed; top: 50px; left: 50px; background: white; border: 2px solid black; padding: 10px; z-index: 100;">
-  <h3>Menu de Fabrication</h3>
-  <button id="craftShovelBtn">Bois x5 → Pelle</button>
-  <br><br>
-  <button id="closeCraftMenuBtn">Fermer</button>
-</div>
-<!--div id="zoomError" style="
-  display: none;
-  position: fixed;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  background: #220000;
-  color: red;
-  font-weight: bold;
-  font-size: 18px;
-  padding: 20px;
-  border: 2px solid red;
-  z-index: 9999;
-">
-  Pour jouer, merci de vous mettre à un zoom de 100%. (Obliguatoire)
-</div-->
+  <!-- MENU DE CRAFT -->
+  <div id="craftMenu" style="display:none; position: fixed; top: 50px; left: 50px; background: white; border: 2px solid black; padding: 10px; z-index: 100;">
+    <h3>Menu de Fabrication</h3>
+    <button id="craftShovelBtn">Bois x5 → Pelle</button>
+    <br><br>
+    <button id="closeCraftMenuBtn">Fermer</button>
+  </div>
 
+  <!-- SCRIPT POUR LE BOUTON HOST -->
+  <script>
+    const hostBtn = document.getElementById("hostBtn");
+    let isHosting = false;
+
+    hostBtn.addEventListener("click", () => {
+      isHosting = !isHosting;
+      if (isHosting) {
+        hostBtn.textContent = "Arrêter l'host";
+        hostBtn.style.backgroundColor = "red";
+      } else {
+        hostBtn.textContent = "Host";
+        hostBtn.style.backgroundColor = "green";
+      }
+    });
+  </script>
 <script>
 const firebaseConfig = {
   apiKey: "AIzaSyBPq6Wfxzq02MfK69BFxHm9_FUjDGTmAcw",
