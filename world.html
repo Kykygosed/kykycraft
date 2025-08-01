@@ -605,59 +605,69 @@ function gameLoop() {
   // 1. Dessiner la map infinie (background)
   drawInfiniteMap();
 
-  // 2. Dessiner les chemins (ex : chemins, routes)
+  // 2. Dessiner les chemins (avant le voile)
   drawPaths();
 
-  // 3. Appliquer un voile sombre global (nuit)
-  let opacity = updateLighting();
+  // 3. Appliquer un voile sombre global (effet de nuit)
+  const opacity = updateLighting();
   if (opacity > 0) {
     ctx.fillStyle = `rgba(0, 0, 0, ${opacity.toFixed(2)})`;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
   }
 
-  // 4. Afficher les objets au sol (bois)
-  for (const drop of droppedItems) {
-    const screenX = canvas.width / 2 + (drop.x - player.x);
-    const screenY = canvas.height / 2 + (drop.y - player.y);
-    ctx.drawImage(woodImg, screenX - 16, screenY - 16, 32, 32);
+  // 4. Dessiner les objets au sol (ex: bois)
+  if (Array.isArray(droppedItems)) {
+    for (const drop of droppedItems) {
+      const screenX = canvas.width / 2 + (drop.x - player.x);
+      const screenY = canvas.height / 2 + (drop.y - player.y);
+      ctx.drawImage(woodImg, screenX - 16, screenY - 16, 32, 32);
+    }
   }
 
-  // 5. Dessiner le joueur
+  // 5. Dessiner le joueur (toujours au centre)
   const playerScreenX = canvas.width / 2 - player.size / 2;
   const playerScreenY = canvas.height / 2 - player.size / 2;
   ctx.fillStyle = "red";
   ctx.fillRect(playerScreenX, playerScreenY, player.size, player.size);
 
-  // 6. Dessiner les mobs
+  // 6. Dessiner les mobs (en-dessous des arbres)
   drawMobs();
 
   // 7. Dessiner les arbres au-dessus du joueur et des mobs
   nearbyTree = null;
-  for (const tree of treePositions) {
-    const screenX = canvas.width / 2 + (tree.x - player.x);
-    const screenY = canvas.height / 2 + (tree.y - player.y);
-    ctx.drawImage(treeImg, screenX - 16, screenY - 32, 32, 64);
+  if (Array.isArray(treePositions)) {
+    for (const tree of treePositions) {
+      const screenX = canvas.width / 2 + (tree.x - player.x);
+      const screenY = canvas.height / 2 + (tree.y - player.y);
+      ctx.drawImage(treeImg, screenX - 16, screenY - 32, 32, 64);
 
-    const dist = Math.hypot(tree.x - player.x, tree.y - player.y);
-    if (dist < 40 && !nearbyTree) {
-      nearbyTree = tree;
+      const dist = Math.hypot(tree.x - player.x, tree.y - player.y);
+      if (dist < 40 && !nearbyTree) {
+        nearbyTree = tree;
+      }
     }
   }
 
-  // 8. Gérer le bouton "Casser" selon proximité d'arbre
+  // 8. Gérer l'affichage du bouton "Casser"
   const breakBtn = document.getElementById("breakBtn");
-  breakBtn.style.display = nearbyTree ? "block" : "none";
+  if (breakBtn) {
+    breakBtn.style.display = nearbyTree ? "block" : "none";
+  }
 
-  // 9. Mettre à jour la logique du jeu
+  // 9. Logique de jeu
   handleMovement();
   updateGameTime();
   updateFirebaseCoords();
 
-  // 10. Mettre à jour l'affichage des coordonnées et heure
-  coordsEl.textContent = `X: ${player.x.toFixed(2)} Y: ${player.y.toFixed(2)}`;
-  timeDisplay.textContent = `Jour ${currentDay} - ${getGameTimeStr()}`;
+  // 10. Affichage coordonnées + jour + heure
+  if (coordsEl) {
+    coordsEl.textContent = `X: ${player.x.toFixed(2)} Y: ${player.y.toFixed(2)}`;
+  }
+  if (timeDisplay) {
+    timeDisplay.textContent = `Jour ${currentDay} - ${getGameTimeStr()}`;
+  }
 
-  // 11. Boucle de jeu
+  // 11. Boucle continue
   requestAnimationFrame(gameLoop);
 }
 
@@ -1112,16 +1122,17 @@ function drawMobs() {
 }
 
 function drawPaths() {
-  if (!paths || paths.length === 0) return;
+  if (!pathPositions || pathPositions.length === 0) return;
 
-  ctx.strokeStyle = "#654321";  // couleur marron foncé pour chemin
+  ctx.strokeStyle = "#654321";  // marron foncé pour les chemins
   ctx.lineWidth = 4;
   ctx.lineCap = "round";
 
   ctx.beginPath();
 
-  for (const segment of paths) {
-    // Convertir les coordonnées du monde en coordonnées écran (centré joueur)
+  for (const segment of pathPositions) {
+    if (!segment.x1 || !segment.y1 || !segment.x2 || !segment.y2) continue;
+
     const startX = canvas.width / 2 + (segment.x1 - player.x);
     const startY = canvas.height / 2 + (segment.y1 - player.y);
     const endX = canvas.width / 2 + (segment.x2 - player.x);
@@ -1133,6 +1144,7 @@ function drawPaths() {
 
   ctx.stroke();
 }
+
 
 // Fonction utilitaire (exemple)
 function isWalkable(x, y) {
@@ -1165,23 +1177,40 @@ function spawnMonstersGroup() {
 
 // Ensuite, dans ta fonction d'initialisation du jeu (init ou équivalent)
 function initGame() {
-  // Charger les chemins depuis Firebase
-  db.ref(`users/${uid}/worlds/${currentWorld}/worldinfo/paths`).once("value").then(snapshot => {
-    const data = snapshot.val() || {};
-    pathPositions = Object.values(data);
-    console.log("Chemins chargés au lancement :", pathPositions);
+  // 1. Charger une première fois les chemins depuis Firebase
+  db.ref(`users/${uid}/worlds/${currentWorld}/worldinfo/paths`).once("value")
+    .then(snapshot => {
+      const data = snapshot.val();
+      if (data) {
+        pathPositions = Object.values(data).filter(seg => isValidPathSegment(seg));
+        console.log("Chemins chargés au lancement :", pathPositions);
+      } else {
+        pathPositions = [];
+        console.log("Aucun chemin au lancement.");
+      }
 
-    // Lancer la boucle de jeu après chargement des paths
-    requestAnimationFrame(gameLoop);
-  });
+      // Lancer le jeu une fois les chemins chargés
+      requestAnimationFrame(gameLoop);
+    })
+    .catch(error => {
+      console.error("Erreur de chargement initial des chemins :", error);
+      pathPositions = [];
+      requestAnimationFrame(gameLoop); // Lancer le jeu quand même
+    });
 
-  // Ensuite on garde une écoute pour les mises à jour en live
+  // 2. Écoute en temps réel des chemins
   db.ref(`users/${uid}/worlds/${currentWorld}/worldinfo/paths`).on("value", (snapshot) => {
-    const data = snapshot.val() || {};
-    pathPositions = Object.values(data);
-    console.log("Chemins mis à jour :", pathPositions);
+    const data = snapshot.val();
+    if (data) {
+      pathPositions = Object.values(data).filter(seg => isValidPathSegment(seg));
+      console.log("Chemins mis à jour :", pathPositions);
+    } else {
+      pathPositions = [];
+      console.log("Tous les chemins ont été supprimés.");
+    }
   });
 
+  // 3. Spawner les monstres la nuit
   setInterval(() => {
     const hour = getInGameHour();
     if (hour >= 17 || hour < 8) {
@@ -1189,6 +1218,13 @@ function initGame() {
     }
   }, 10000);
 }
+
+// Petite fonction de sécurité pour vérifier qu'un segment est complet
+function isValidPathSegment(seg) {
+  return seg && typeof seg.x1 === "number" && typeof seg.y1 === "number" &&
+         typeof seg.x2 === "number" && typeof seg.y2 === "number";
+}
+
 
 
 
