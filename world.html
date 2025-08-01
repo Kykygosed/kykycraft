@@ -601,6 +601,11 @@ function updateGameTime() {
 
 function gameLoop() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
+  if (player.health <= 0) {
+  handleDeath(); // ta fonction de mort, si elle existe
+  return; // arrêter le gameLoop
+}
+
 
   // 1. Dessiner la map infinie (background)
   drawInfiniteMap();
