@@ -605,15 +605,15 @@ function gameLoop() {
   // 1. Dessiner la map infinie (background)
   drawInfiniteMap();
 
-  // 2. Appliquer un voile sombre global (nuit)
+  // 2. Dessiner les chemins (ex : chemins, routes)
+  drawPaths();
+
+  // 3. Appliquer un voile sombre global (nuit)
   let opacity = updateLighting();
   if (opacity > 0) {
     ctx.fillStyle = `rgba(0, 0, 0, ${opacity.toFixed(2)})`;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
   }
-
-  // 3. Dessiner les chemins (ex : chemins, routes)
-  drawPaths();
 
   // 4. Afficher les objets au sol (bois)
   for (const drop of droppedItems) {
@@ -622,14 +622,14 @@ function gameLoop() {
     ctx.drawImage(woodImg, screenX - 16, screenY - 16, 32, 32);
   }
 
-  // 5. Dessiner les mobs
-  drawMobs();
-
-  // 6. Dessiner le joueur
+  // 5. Dessiner le joueur
   const playerScreenX = canvas.width / 2 - player.size / 2;
   const playerScreenY = canvas.height / 2 - player.size / 2;
   ctx.fillStyle = "red";
   ctx.fillRect(playerScreenX, playerScreenY, player.size, player.size);
+
+  // 6. Dessiner les mobs
+  drawMobs();
 
   // 7. Dessiner les arbres au-dessus du joueur et des mobs
   nearbyTree = null;
@@ -1112,13 +1112,28 @@ function drawMobs() {
 }
 
 function drawPaths() {
-  if (!pathPositions || pathPositions.length === 0) return;
+  // Exemple simple : dessiner une ligne ou un chemin
+  console.log("drawPaths called");
+  ctx.strokeStyle = 'gray';
+  ctx.lineWidth = 3;
 
-  pathPositions.forEach(path => {
-    const screenX = canvas.width / 2 + (path.x - player.x);
-    const screenY = canvas.height / 2 + (path.y - player.y);
-    ctx.drawImage(pathImg, screenX - 16, screenY - 16, 32, 32);
-  });
+  ctx.beginPath();
+  // Exemple : un chemin de 3 points
+  const pathPoints = [
+    {x: 100, y: 100},
+    {x: 300, y: 150},
+    {x: 500, y: 200}
+  ];
+
+  for(let i = 0; i < pathPoints.length; i++) {
+    // Transformer les coordonnées mondiales en coordonnées écran
+    const screenX = canvas.width / 2 + (pathPoints[i].x - player.x);
+    const screenY = canvas.height / 2 + (pathPoints[i].y - player.y);
+
+    if(i === 0) ctx.moveTo(screenX, screenY);
+    else ctx.lineTo(screenX, screenY);
+  }
+  ctx.stroke();
 }
 
 
