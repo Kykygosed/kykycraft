@@ -250,7 +250,7 @@
     hostBtn.style.backgroundColor = isHosting ? "red" : "green";
 
     // Mise à jour Firebase
-    const hostingRef = db.ref(`users/${uid}/worlds/${currentWorld}/worldinfo/hosting`);
+    const hostingRef = db.ref(`users/${uid}/worlds/${currentWorld}/hosting`);
     hostingRef.set(isHosting)
       .then(() => {
         console.log(`Hosting mis à jour : ${isHosting}`);
