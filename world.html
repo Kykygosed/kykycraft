@@ -244,15 +244,23 @@
 
   hostBtn.addEventListener("click", () => {
     isHosting = !isHosting;
-    if (isHosting) {
-      hostBtn.textContent = "Arrêter l'host";
-      hostBtn.style.backgroundColor = "red";
-    } else {
-      hostBtn.textContent = "Host";
-      hostBtn.style.backgroundColor = "green";
-    }
+
+    // Mise à jour visuelle
+    hostBtn.textContent = isHosting ? "Arrêter l'host" : "Host";
+    hostBtn.style.backgroundColor = isHosting ? "red" : "green";
+
+    // Mise à jour Firebase
+    const hostingRef = db.ref(`users/${uid}/worlds/${currentWorld}/worldinfo/hosting`);
+    hostingRef.set(isHosting)
+      .then(() => {
+        console.log(`Hosting mis à jour : ${isHosting}`);
+      })
+      .catch((error) => {
+        console.error("Erreur lors de la mise à jour de hosting :", error);
+      });
   });
 </script>
+
 
 
   <canvas id="gameCanvas"></canvas>
