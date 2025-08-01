@@ -1112,25 +1112,14 @@ function drawMobs() {
 }
 
 function drawPaths() {
-  if (!paths || paths.length < 2) return; // au moins 2 points pour dessiner
-
-  ctx.strokeStyle = "#654321"; // marron foncé
-  ctx.lineWidth = 4;
-  ctx.lineCap = "round";
+  console.log("drawPaths called");
+  // Et un dessin simple pour test :
+  ctx.strokeStyle = 'yellow';
+  ctx.lineWidth = 5;
 
   ctx.beginPath();
-
-  for (let i = 0; i < paths.length; i++) {
-    const screenX = canvas.width / 2 + (paths[i].x - player.x);
-    const screenY = canvas.height / 2 + (paths[i].y - player.y);
-
-    if (i === 0) {
-      ctx.moveTo(screenX, screenY);
-    } else {
-      ctx.lineTo(screenX, screenY);
-    }
-  }
-
+  ctx.moveTo(canvas.width / 2 - 50, canvas.height / 2);
+  ctx.lineTo(canvas.width / 2 + 50, canvas.height / 2);
   ctx.stroke();
 }
 
